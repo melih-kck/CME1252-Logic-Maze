@@ -1,2 +1,14 @@
+import enigma.core.Enigma;
+import enigma.console.Console;
+
 public class Main {
+    public static void main(String[] args) throws Exception {
+        // Init Enigma with title and window dimensions
+        Console console = Enigma.getConsole("Logic Maze Game", 100, 30, 20, 2);
+
+        Player player = new Player(1, 1);
+        GameLoop game = new GameLoop(console);
+
+        game.start(player);
+    }
 }
