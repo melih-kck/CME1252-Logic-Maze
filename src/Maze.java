@@ -2,14 +2,14 @@ import java.util.Scanner;
 import java.io.File;
 
 public class Maze {
-    private char[][] grid;
+    public char[][] grid;
 
     public Maze() throws Exception {
         grid = new char[GameConstants.MAZE_ROWS][GameConstants.MAZE_COLS];
         loadMazeFromFile("maze.txt");
     }
 
-    private void loadMazeFromFile(String fileName) throws Exception {
+    public void loadMazeFromFile(String fileName) throws Exception {
         File file = new File(fileName);
         if (!file.exists()) { return; }
 
@@ -34,5 +34,11 @@ public class Maze {
 
     public char[][] getGrid() {
         return grid;
+    }
+
+    public char[][] setGrid(int x , int y , int r){
+        grid[x][y] = (char) r ;
+
+        return grid ;
     }
 }

@@ -2,6 +2,8 @@ import enigma.console.Console;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
+
+
 public class GameLoop {
     private int tick = 0;
     private boolean running = true;
@@ -10,8 +12,8 @@ public class GameLoop {
     private int lastInput = Direction.NONE;
     private long startTime;
 
-    public GameLoop(Console console) throws Exception {
-        this.maze = new Maze();
+    public GameLoop(Console console , Maze maze ) throws Exception {
+        this.maze = maze ;
         this.console = console;
         this.startTime = System.currentTimeMillis();
 
@@ -64,7 +66,13 @@ public class GameLoop {
             for (int c = 0; c < GameConstants.MAZE_COLS; c = c + 1) {
                 if (r == player.getRow() && c == player.getCol()) {
                     console.getTextWindow().output('P');
-                } else {
+                } else if (grid[r][c] == 'A' ||grid[r][c] == 'B' ||grid[r][c] == 'C' ||grid[r][c] == 'D' ||
+                        grid[r][c] == 'a' ||grid[r][c] == 'b' ||grid[r][c] == 'c' ||grid[r][c] == 'd' ||
+                        grid[r][c] == '˜' ||grid[r][c] == '^' ||grid[r][c] == 'v' ||grid[r][c] == '+' ||
+                        grid[r][c] == '>' ||grid[r][c] == '=' ||grid[r][c] == '@' ||grid[r][c] == 'X' ){
+                    console.getTextWindow().output(grid[r][c]);
+                }
+                else{
                     console.getTextWindow().output(grid[r][c]);
                 }
             }
