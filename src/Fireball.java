@@ -1,52 +1,92 @@
-    public class Fireball {
-        private int x;
-        private int y;
-        private int dx = 0;
-        private int dy = 0;
-        private boolean active;
-        public Fireball(int startX, int startY, int direction) {
-            this.x = startX;
-            this.y = startY;
-            this.active = true;
-            if(direction == Direction.UP)
-            {
-                this.dy = -1;
-            }
-            if(direction == Direction.DOWN)
-            {
-                this.dy = 1;
-            }
-            if(direction == Direction.LEFT)
-            {
-                this.dx = -1;
-            }
-            if(direction == Direction.RIGHT)
-            {
-                this.dy = 1;
-            }
-            if (direction == Direction.NONE) {
-                this.active = false;
-            }
-        }
-        public int firex ;
-        public int firey ;
-        public int counter = -1 ;
-        public int stfirex = 0 ;
-        public int stfirey = 0 ;
-        public boolean firealive = false ;
-        public double movx = 0 ;
-        public double movy = 0 ;
-    
-        public void update() {
-            if (active) {
-                this.x += this.dx;
-                this.y += this.dy;
-            }
-        }
-        public int getX() { return x; }
-        public int getY() { return y; }
-        public boolean isActive() { return active; }
-        public void deactivate() {
-            this.active = false;
-        }
+public class Fireball {
+    private int packedCount = 0;
+
+    private boolean active = false;
+    private int x = -1;
+    private int y = -1;
+    private int dx = 0;
+    private int dy = 0;
+
+    public void addPacked() {
+        packedCount = packedCount + 1;
     }
+
+    public int getPackedCount() {
+        return packedCount;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public int getCol() {
+        return x;
+    }
+
+    public int getRow() {
+        return y;
+    }
+
+    public boolean fire(int startCol, int startRow, int direction) {
+        if (packedCount <= 0 || active) {
+            return false;
+        }
+
+        int ndx = 0;
+        int ndy = 0;
+        if (direction == Direction.UP) { ndy = -1; }
+        if (direction == Direction.DOWN) { ndy = 1; }
+        if (direction == Direction.LEFT) { ndx = -1; }
+        if (direction == Direction.RIGHT) { ndx = 1; }
+
+        if (ndx == 0 && ndy == 0) {
+            return false;
+        }
+
+        packedCount = packedCount - 1;
+        active = true;
+        x = startCol;
+        y = startRow;
+        dx = ndx;
+        dy = ndy;
+        return true;
+    }
+
+    // Returns 1 if this step hits a robot (X), otherwise 0.
+    public int update(char[][] grid) {
+        if (!active) {
+            return 0;
+        }
+
+        int nextX = x + dx;
+        int nextY = y + dy;
+
+        if (nextY < 0 || nextY >= grid.length || nextX < 0 || nextX >= grid[0].length) {
+            deactivate();
+            return 0;
+        }
+
+        char target = grid[nextY][nextX];
+
+        // Fireball stops only at walls, passes through symbols/items.
+        if (target == '#') {
+            deactivate();
+            return 0;
+        }
+
+        int destroyed = 0;
+        if (target == 'X') {
+            destroyed = 1;
+        }
+
+        x = nextX;
+        y = nextY;
+        return destroyed;
+    }
+
+    public void deactivate() {
+        active = false;
+        dx = 0;
+        dy = 0;
+    }
+}
