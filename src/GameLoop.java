@@ -28,6 +28,10 @@ public class GameLoop {
 
     private char[] inputQueue = new char[10];
 
+    private int activeScreen = 1; // 1: Maze, 2: Tree, 3: Table
+    private Tree tree = new Tree();
+    private Player player;
+
     public GameLoop(Console console , Maze maze ) throws Exception {
         this.maze = maze ;
         this.console = console;
@@ -39,18 +43,73 @@ public class GameLoop {
         // Asynchronous key listener
         this.console.getTextWindow().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_W) { lastInput = Direction.UP; facingDirection = Direction.UP; }
-                if (e.getKeyCode() == KeyEvent.VK_S) { lastInput = Direction.DOWN; facingDirection = Direction.DOWN; }
-                if (e.getKeyCode() == KeyEvent.VK_A) { lastInput = Direction.LEFT; facingDirection = Direction.LEFT; }
-                if (e.getKeyCode() == KeyEvent.VK_D) { lastInput = Direction.RIGHT; facingDirection = Direction.RIGHT; }
-                if (e.getKeyCode() == KeyEvent.VK_SPACE) { fireRequested = true; }
+
+                if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; }
+                if (e.getKeyCode() == KeyEvent.VK_2) { activeScreen = 2; }
+                if (e.getKeyCode() == KeyEvent.VK_3) { activeScreen = 3; }
+
+
+                if (activeScreen == 1) {
+                    if (e.getKeyCode() == KeyEvent.VK_W) { lastInput = Direction.UP; facingDirection = Direction.UP; }
+                    if (e.getKeyCode() == KeyEvent.VK_S) { lastInput = Direction.DOWN; facingDirection = Direction.DOWN; }
+                    if (e.getKeyCode() == KeyEvent.VK_A) { lastInput = Direction.LEFT; facingDirection = Direction.LEFT; }
+                    if (e.getKeyCode() == KeyEvent.VK_D) { lastInput = Direction.RIGHT; facingDirection = Direction.RIGHT; }
+                    if (e.getKeyCode() == KeyEvent.VK_SPACE) { fireRequested = true; }
+
+                    if (e.getKeyCode() == KeyEvent.VK_M) {
+                        if (storageMode.equals("Backpack")) {
+                            storageMode = "Tree";
+                        } else {
+                            storageMode = "Backpack";
+                        }
+                    }
+                }
+                else if (activeScreen == 2) {
+                    if (e.getKeyCode() == KeyEvent.VK_W) { tree.moveUp(); score--; }
+                    if (e.getKeyCode() == KeyEvent.VK_A) { tree.moveLeft(); score--; }
+                    if (e.getKeyCode() == KeyEvent.VK_D) { tree.moveRight(); score--; }
+
+                    if (e.getKeyCode() == KeyEvent.VK_T) {
+                        if (!player.isBackpackEmpty()) {
+                            char item = player.popBackpack();
+                            tree.placeSymbol(item);
+                            tree.moveToNextEmpty();
+                        }
+                    }
+
+                    if (e.getKeyCode() == KeyEvent.VK_R) {
+                        char item = tree.getCursorSymbol();
+                        if (item != ' ' && !player.isBackpackFull()) {
+                            tree.removeSymbol();
+                            player.pushBackpack(item);
+                            score -= 2;
+                        }
+                    }
+
+                    if (e.getKeyCode() == KeyEvent.VK_F) {
+
+                        if (tree.checkSyntax()) {
+                            int addedScore = 10 * tree.countTotalNodes(tree.getRoot());
+                            score += addedScore;
+                            activeScreen = 3;
+                        } else {
+                            score -= 10;
+
+                        }
+                    }
+                }
             }
+
+
             public void keyReleased(KeyEvent e) { lastInput = Direction.NONE; }
             public void keyTyped(KeyEvent e) {}
         });
     }
 
     public void start(Player player) {
+
+        this.player = player;
+
         while (running) {
             update(player);
             draw(player);
@@ -59,6 +118,10 @@ public class GameLoop {
     }
 
     private void update(Player player) {
+
+        if (activeScreen != 1)
+            return;
+
         tick = tick + 1;
         player.tickCooldown();
 
@@ -87,10 +150,32 @@ public class GameLoop {
         if (tick > 100000) { tick = 0; }
     }
 
-    private void draw(Player player) {
-        char[][] grid = maze.getGrid();
+    private void clearWholeScreen() {
+        for (int r = 0; r < 30; r++) {
+            console.getTextWindow().setCursorPosition(0, r);
+            console.getTextWindow().output("                                                                                                    ");
 
-        // Draw maze and player
+        }
+    }
+
+    private void draw(Player player) {
+
+        console.getTextWindow().setCursorPosition(0, 0);
+
+        if (activeScreen == 1) {
+            drawMazeScreen(player);
+        }
+        else if (activeScreen == 2) {
+            clearWholeScreen();
+            tree.drawTree(console);
+        }
+        else if (activeScreen == 3) {
+
+        }
+    }
+
+    private void drawMazeScreen(Player player) {
+        char[][] grid = maze.getGrid();         // Draw maze and player
         for (int r = 0; r < GameConstants.MAZE_ROWS; r = r + 1) {
             console.getTextWindow().setCursorPosition(0, r);
             for (int c = 0; c < GameConstants.MAZE_COLS; c = c + 1) {
@@ -125,6 +210,7 @@ public class GameLoop {
         int col = player.getCol();
         char cell = grid[row][col];
 
+
         if (cell == '@') {
             fireball.addPacked();
             fireballCount = fireball.getPackedCount();
@@ -132,11 +218,15 @@ public class GameLoop {
             return;
         }
 
-        if (isCollectible(cell) && player.isBackpackFull() == false) {
-            player.pushBackpack(cell);
 
-            score = score + 5;
-
+        if (isCollectible(cell)) {
+            if (storageMode.equals("Tree") || player.isBackpackFull()) {
+                tree.placeSymbol(cell);
+                tree.moveToNextEmpty();
+            } else {
+                player.pushBackpack(cell);
+            }
+            score += 5;
             grid[row][col] = ' ';
         }
     }
@@ -373,4 +463,3 @@ public class GameLoop {
         }
     }
 }
-

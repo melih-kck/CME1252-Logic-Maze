@@ -13,5 +13,3 @@ public class Main {
         game.start(player);
     }
 }
-
-
