@@ -31,6 +31,8 @@ public class GameLoop {
     private int activeScreen = 1; // 1: Maze, 2: Tree, 3: Table
     private Tree tree = new Tree();
     private Player player;
+    private Robot[] robots = new Robot[20];
+    private int robotCount = 0;
 
     public GameLoop(Console console , Maze maze ) throws Exception {
         this.maze = maze ;
@@ -132,6 +134,20 @@ public class GameLoop {
             if (lastInput == Direction.LEFT)  { dx = -1; }
             if (lastInput == Direction.RIGHT) { dx =  1; }
 
+
+            if (tick % 4 == 0) {
+                for (int i = 0; i < robotCount; i++) {
+                    if (robots[i] != null && robots[i].life > 0) {
+                        robots[i].moveAndCollect(maze.getGrid(), player.getCol(), player.getRow(), robots, robotCount, i);
+
+                        // grid update and collection
+                        syncRobotPositionOnGrid(robots[i]);
+                        robots[i].collect(maze.getGrid());
+                    }
+                }
+            }
+
+
             // Wall collision check
             if (maze.isWall(player.getCol() + dx, player.getRow() + dy) == false) {
                 player.performMove(lastInput);
@@ -149,6 +165,8 @@ public class GameLoop {
 
         if (tick > 100000) { tick = 0; }
     }
+
+
 
     private void clearWholeScreen() {
         for (int r = 0; r < 30; r++) {
@@ -230,6 +248,21 @@ public class GameLoop {
             grid[row][col] = ' ';
         }
     }
+/*
+    private void collectItemAtRobot(Robot robo){
+
+        char[][] grid = maze.getGrid();
+        int row = robo.getRow();
+        int col = robo.getCol();
+        char cell = grid[row][col];
+
+        if (cell == '@') {
+        }
+        if (isCollectible(cell)) {
+            grid[row][col] = ' ';
+        }
+    }
+    */
 
     private boolean isCollectible(char ch) {
         return ch == 'A' || ch == 'B' || ch == 'C' || ch == 'D'
@@ -272,6 +305,8 @@ public class GameLoop {
         return grid[row][col] == 'X';
     }
 
+
+
     private void initializeRobotHealthFromGrid() {
         char[][] grid = maze.getGrid();
         for (int r = 0; r < GameConstants.MAZE_ROWS; r = r + 1) {
@@ -302,6 +337,26 @@ public class GameLoop {
             grid[row][col] = ' ';
             robotHp[row][col] = 0;
             score = score + 50;
+        }
+    }
+
+
+    private void syncRobotPositionOnGrid(Robot robo) {
+        char[][] grid = maze.getGrid();
+
+        // First, clear any old 'X' that might belong to this robot
+        // (This is a simple approach; for better performance, store oldX/oldY)
+        for (int r = 0; r < GameConstants.MAZE_ROWS; r++) {
+            for (int c = 0; c < GameConstants.MAZE_COLS; c++) {
+                if (grid[r][c] == 'X') grid[r][c] = ' ';
+            }
+        }
+
+        // Place all alive robots back on the grid
+        for (int i = 0; i < robotCount; i++) {
+            if (robots[i].life > 0) {
+                grid[robots[i].y][robots[i].x] = 'X';
+            }
         }
     }
 
@@ -443,6 +498,10 @@ public class GameLoop {
             grid[row][col] = element;
             if (element == 'X') {
                 robotHp[row][col] = ROBOT_MAX_HP;
+                if (robotCount < robots.length) {
+                    robots[robotCount] = new Robot(col, row);
+                    robotCount++;
+                }
             }
             return;
         }
