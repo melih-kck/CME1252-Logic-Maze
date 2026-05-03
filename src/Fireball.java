@@ -52,7 +52,7 @@ public class Fireball {
         return true;
     }
 
-    // Returns 1 if this step hits a robot (X), otherwise 0.
+    // Returns 1 on a robot hit; non-robot objects stop the fireball.
     public int update(char[][] grid) {
         if (!active) {
             return 0;
@@ -68,19 +68,20 @@ public class Fireball {
 
         char target = grid[nextY][nextX];
 
-        // Fireball stops only at walls, passes through symbols/items.
-        if (target == '#') {
+        int destroyed = 0;
+        if (target == 'X') {
+            destroyed = 1;
+            x = nextX;
+            y = nextY;
+        } else if (target == ' ' || target == '\0') {
+            x = nextX;
+            y = nextY;
+        } else {
+            // Hit a wall or other obstacle — stop the fireball.
             deactivate();
             return 0;
         }
 
-        int destroyed = 0;
-        if (target == 'X') {
-            destroyed = 1;
-        }
-
-        x = nextX;
-        y = nextY;
         return destroyed;
     }
 

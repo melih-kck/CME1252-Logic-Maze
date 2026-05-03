@@ -3,20 +3,19 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Random;
 
-
-
 public class GameLoop {
-    private static final int ROBOT_MAX_HP = 2;
     private static final int ADJACENT_ROBOT_DAMAGE = 5;
 
     private int tick = 0;
     private boolean running = true;
+    private boolean isGameOver = false;
     private Maze maze;
     private Console console;
     private int lastInput = Direction.NONE;
     private int facingDirection = Direction.RIGHT;
     private boolean fireRequested = false;
-    private long startTime;
+    // Counts only maze-screen ticks, so time pauses on tree/table screens.
+    private int elapsedTicks = 0;
     private Random random = new Random();
     private Fireball fireball = new Fireball();
 
@@ -24,38 +23,45 @@ public class GameLoop {
     private int life = 100;
     private int fireballCount = 0;
     private String storageMode = "Backpack";
-    private int[][] robotHp = new int[GameConstants.MAZE_ROWS][GameConstants.MAZE_COLS];
-
     private char[] inputQueue = new char[10];
 
     private int activeScreen = 1; // 1: Maze, 2: Tree, 3: Table
     private Tree tree = new Tree();
     private Player player;
-    private Robot[] robots = new Robot[20];
+    private Robot[] robots = new Robot[100];
     private int robotCount = 0;
+
+    private String expressionInfix = "";
+    private String expressionPostfix = "";
+    private String treeMessage = "";
+    private boolean expressionReady = false;
 
     public GameLoop(Console console , Maze maze ) throws Exception {
         this.maze = maze ;
         this.console = console;
-        this.startTime = System.currentTimeMillis();
 
-        initInputQueueAndPlaceFirstTen();
         initializeRobotHealthFromGrid();
+        initInputQueueAndPlaceFirstTen();
 
-        // Asynchronous key listener
+        // The listener records input; update() applies it on each maze tick.
         this.console.getTextWindow().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
+                if (isGameOver) {
+                    System.exit(0);
+                }
 
-                if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; }
-                if (e.getKeyCode() == KeyEvent.VK_2) { activeScreen = 2; }
-                if (e.getKeyCode() == KeyEvent.VK_3) { activeScreen = 3; }
+                if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; treeMessage = ""; }
+
+                if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; treeMessage = ""; }
+                if (e.getKeyCode() == KeyEvent.VK_2) { activeScreen = 2; treeMessage = ""; lastInput = Direction.NONE; }
+                if (e.getKeyCode() == KeyEvent.VK_3) { activeScreen = 3; treeMessage = ""; lastInput = Direction.NONE; }
 
 
                 if (activeScreen == 1) {
-                    if (e.getKeyCode() == KeyEvent.VK_W) { lastInput = Direction.UP; facingDirection = Direction.UP; }
-                    if (e.getKeyCode() == KeyEvent.VK_S) { lastInput = Direction.DOWN; facingDirection = Direction.DOWN; }
-                    if (e.getKeyCode() == KeyEvent.VK_A) { lastInput = Direction.LEFT; facingDirection = Direction.LEFT; }
-                    if (e.getKeyCode() == KeyEvent.VK_D) { lastInput = Direction.RIGHT; facingDirection = Direction.RIGHT; }
+                    if (e.getKeyCode() == KeyEvent.VK_W || e.getKeyCode() == KeyEvent.VK_UP)    { lastInput = Direction.UP;    facingDirection = Direction.UP; }
+                    if (e.getKeyCode() == KeyEvent.VK_S || e.getKeyCode() == KeyEvent.VK_DOWN)  { lastInput = Direction.DOWN;  facingDirection = Direction.DOWN; }
+                    if (e.getKeyCode() == KeyEvent.VK_A || e.getKeyCode() == KeyEvent.VK_LEFT)  { lastInput = Direction.LEFT;  facingDirection = Direction.LEFT; }
+                    if (e.getKeyCode() == KeyEvent.VK_D || e.getKeyCode() == KeyEvent.VK_RIGHT) { lastInput = Direction.RIGHT; facingDirection = Direction.RIGHT; }
                     if (e.getKeyCode() == KeyEvent.VK_SPACE) { fireRequested = true; }
 
                     if (e.getKeyCode() == KeyEvent.VK_M) {
@@ -67,15 +73,27 @@ public class GameLoop {
                     }
                 }
                 else if (activeScreen == 2) {
-                    if (e.getKeyCode() == KeyEvent.VK_W) { tree.moveUp(); score--; }
-                    if (e.getKeyCode() == KeyEvent.VK_A) { tree.moveLeft(); score--; }
-                    if (e.getKeyCode() == KeyEvent.VK_D) { tree.moveRight(); score--; }
+                    if (e.getKeyCode() == KeyEvent.VK_W && tree.moveUp()) { score--; }
+                    if (e.getKeyCode() == KeyEvent.VK_A && tree.moveLeft()) { score--; }
+                    if (e.getKeyCode() == KeyEvent.VK_D && tree.moveRight()) { score--; }
 
                     if (e.getKeyCode() == KeyEvent.VK_T) {
                         if (!player.isBackpackEmpty()) {
-                            char item = player.popBackpack();
-                            tree.placeSymbol(item);
-                            tree.moveToNextEmpty();
+                            if (tree.getCursorSymbol() != ' ') {
+                                tree.moveToNextEmpty();
+                            }
+
+                            char item = player.peekBackpack();
+                            if (tree.placeSymbol(item)) {
+                                player.popBackpack();
+                                tree.moveToNextEmpty();
+                                treeMessage = "";
+                                expressionReady = false;
+                                expressionInfix = "";
+                                expressionPostfix = "";
+                            } else {
+                                treeMessage = "ERROR: Tree is full.";
+                            }
                         }
                     }
 
@@ -85,18 +103,33 @@ public class GameLoop {
                             tree.removeSymbol();
                             player.pushBackpack(item);
                             score -= 2;
+                            treeMessage = "";
+                            expressionReady = false;
+                            expressionInfix = "";
+                            expressionPostfix = "";
+                        } else if (item == ' ') {
+                            treeMessage = "ERROR: No symbol at cursor.";
+                        } else {
+                            treeMessage = "ERROR: Backpack is full.";
                         }
                     }
 
                     if (e.getKeyCode() == KeyEvent.VK_F) {
 
                         if (tree.checkSyntax()) {
-                            int addedScore = 10 * tree.countTotalNodes(tree.getRoot());
-                            score += addedScore;
+                            if (!expressionReady) {
+                                int addedScore = 10 * tree.countTotalNodes(tree.getRoot());
+                                score += addedScore;
+                            }
+                            expressionInfix = tree.getFullInfix();
+                            expressionPostfix = tree.getFullPostfix();
+                            treeMessage = "";
+                            expressionReady = true;
                             activeScreen = 3;
                         } else {
                             score -= 10;
-
+                            treeMessage = "ERROR: Invalid expression! (-10 pts)";
+                            expressionReady = false;
                         }
                     }
                 }
@@ -111,11 +144,41 @@ public class GameLoop {
     public void start(Player player) {
 
         this.player = player;
+        placePlayerRandomly(player);
 
         while (running) {
             update(player);
             draw(player);
             sleep(GameConstants.TIME_UNIT_MS);
+        }
+
+        drawGameOver();
+    }
+
+    private void drawGameOver() {
+        clearWholeScreen();
+        console.getTextWindow().setCursorPosition(35, 10);
+        console.getTextWindow().output("*** GAME OVER ***");
+        console.getTextWindow().setCursorPosition(32, 12);
+        console.getTextWindow().output("Final Score : " + score);
+        console.getTextWindow().setCursorPosition(29, 14);
+        console.getTextWindow().output("Press any key to exit...");
+
+        isGameOver = true;
+        while (true) {
+            sleep(100);
+        }
+    }
+
+    private void placePlayerRandomly(Player player) {
+        char[][] grid = maze.getGrid();
+        for (int attempt = 0; attempt < 500; attempt = attempt + 1) {
+            int row = random.nextInt(GameConstants.MAZE_ROWS - 2) + 1;
+            int col = random.nextInt(GameConstants.MAZE_COLS - 2) + 1;
+            if (!maze.isWall(col, row) && grid[row][col] == ' ') {
+                player.setPosition(col, row);
+                return;
+            }
         }
     }
 
@@ -125,7 +188,19 @@ public class GameLoop {
             return;
 
         tick = tick + 1;
+        elapsedTicks = elapsedTicks + 1;
         player.tickCooldown();
+
+        // Robots move by timer, not only when the player presses a key.
+        if (tick % GameConstants.ROBOT_MOVE_INTERVAL == 0) {
+            for (int i = 0; i < robotCount; i++) {
+                if (robots[i] != null && robots[i].life > 0) {
+                    robots[i].moveAndCollect(maze.getGrid(), player.getCol(), player.getRow(), robots, robotCount, i);
+                    robots[i].collect(maze.getGrid());
+                }
+            }
+            syncAllRobotsOnGrid();
+        }
 
         if (player.canMove() && lastInput != Direction.NONE) {
             int dx = 0; int dy = 0;
@@ -134,22 +209,7 @@ public class GameLoop {
             if (lastInput == Direction.LEFT)  { dx = -1; }
             if (lastInput == Direction.RIGHT) { dx =  1; }
 
-
-            if (tick % 4 == 0) {
-                for (int i = 0; i < robotCount; i++) {
-                    if (robots[i] != null && robots[i].life > 0) {
-                        robots[i].moveAndCollect(maze.getGrid(), player.getCol(), player.getRow(), robots, robotCount, i);
-
-                        // grid update and collection
-                        syncRobotPositionOnGrid(robots[i]);
-                        robots[i].collect(maze.getGrid());
-                    }
-                }
-            }
-
-
-            // Wall collision check
-            if (maze.isWall(player.getCol() + dx, player.getRow() + dy) == false) {
+            if (canPlayerEnter(player.getCol() + dx, player.getRow() + dy)) {
                 player.performMove(lastInput);
             }
         }
@@ -186,14 +246,25 @@ public class GameLoop {
         else if (activeScreen == 2) {
             clearWholeScreen();
             tree.drawTree(console);
+            long elapsed = getElapsedSeconds();
+            clearRightPanel();
+            drawInputQueue();
+            drawIndicators(elapsed);
+            drawBackpack(player);
+            drawTreeExpression();
+            if (!treeMessage.isEmpty()) {
+                console.getTextWindow().setCursorPosition(0, 23);
+                console.getTextWindow().output(treeMessage);
+            }
         }
         else if (activeScreen == 3) {
-
+            clearWholeScreen();
+            drawTableScreen();
         }
     }
 
     private void drawMazeScreen(Player player) {
-        char[][] grid = maze.getGrid();         // Draw maze and player
+        char[][] grid = maze.getGrid();
         for (int r = 0; r < GameConstants.MAZE_ROWS; r = r + 1) {
             console.getTextWindow().setCursorPosition(0, r);
             for (int c = 0; c < GameConstants.MAZE_COLS; c = c + 1) {
@@ -201,25 +272,27 @@ public class GameLoop {
                     console.getTextWindow().output('P');
                 } else if (fireball.isActive() && r == fireball.getRow() && c == fireball.getCol()) {
                     console.getTextWindow().output('o');
-                } else if (grid[r][c] == 'A' ||grid[r][c] == 'B' ||grid[r][c] == 'C' ||grid[r][c] == 'D' ||
-                        grid[r][c] == 'a' ||grid[r][c] == 'b' ||grid[r][c] == 'c' ||grid[r][c] == 'd' ||
-                        grid[r][c] == '˜' ||grid[r][c] == '^' ||grid[r][c] == 'v' ||grid[r][c] == '+' ||
-                        grid[r][c] == '>' ||grid[r][c] == '=' ||grid[r][c] == '@' ||grid[r][c] == 'X' ){
-                    console.getTextWindow().output(grid[r][c]);
-                }
-                else{
-                    console.getTextWindow().output(grid[r][c]);
+                } else {
+                    char drawCell = grid[r][c];
+                    if (drawCell == '\0') {
+                        drawCell = ' ';
+                    }
+                    console.getTextWindow().output(drawCell);
                 }
             }
         }
 
-        // Draw only the Timer
-        long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+        long elapsed = getElapsedSeconds();
         clearRightPanel();
         drawInputQueue();
         drawIndicators(elapsed);
-
         drawBackpack(player);
+
+        if (!treeMessage.isEmpty()) {
+            int msgX = getPanelX();
+            console.getTextWindow().setCursorPosition(msgX, 10);
+            console.getTextWindow().output(treeMessage + "          ");
+        }
     }
 
     private void collectItemAtPlayer(Player player) {
@@ -238,37 +311,42 @@ public class GameLoop {
 
 
         if (isCollectible(cell)) {
+            boolean stored = false;
             if (storageMode.equals("Tree") || player.isBackpackFull()) {
-                tree.placeSymbol(cell);
-                tree.moveToNextEmpty();
-            } else {
-                player.pushBackpack(cell);
+                if (tree.getCursorSymbol() != ' ') {
+                    tree.moveToNextEmpty();
+                }
+                stored = tree.placeSymbol(cell);
+                if (stored) {
+                    tree.moveToNextEmpty();
+                }
             }
-            score += 5;
-            grid[row][col] = ' ';
+
+            if (!stored && !player.isBackpackFull()) {
+                stored = player.pushBackpack(cell);
+            }
+
+            if (stored) {
+                score += 5;
+                grid[row][col] = ' ';
+                treeMessage = "";
+            } else {
+                treeMessage = "ERROR: Backpack and tree are full.";
+            }
         }
     }
-/*
-    private void collectItemAtRobot(Robot robo){
-
-        char[][] grid = maze.getGrid();
-        int row = robo.getRow();
-        int col = robo.getCol();
-        char cell = grid[row][col];
-
-        if (cell == '@') {
-        }
-        if (isCollectible(cell)) {
-            grid[row][col] = ' ';
-        }
-    }
-    */
-
     private boolean isCollectible(char ch) {
         return ch == 'A' || ch == 'B' || ch == 'C' || ch == 'D'
                 || ch == 'a' || ch == 'b' || ch == 'c' || ch == 'd'
-                || ch == '~' || ch == '˜' || ch == '^' || ch == 'v'
+                || ch == '~' || ch == '^' || ch == 'v'
                 || ch == '+' || ch == '>' || ch == '=';
+    }
+
+    private boolean canPlayerEnter(int col, int row) {
+        if (maze.isWall(col, row)) {
+            return false;
+        }
+        return maze.getGrid()[row][col] != 'X';
     }
 
     private void handleFire(Player player) {
@@ -312,10 +390,19 @@ public class GameLoop {
         for (int r = 0; r < GameConstants.MAZE_ROWS; r = r + 1) {
             for (int c = 0; c < GameConstants.MAZE_COLS; c = c + 1) {
                 if (grid[r][c] == 'X') {
-                    robotHp[r][c] = ROBOT_MAX_HP;
+                    addRobot(c, r);
                 }
             }
         }
+    }
+
+    private boolean addRobot(int col, int row) {
+        if (robotCount >= robots.length) {
+            return false;
+        }
+        robots[robotCount] = new Robot(col, row);
+        robotCount = robotCount + 1;
+        return true;
     }
 
     private void damageRobotAt(int col, int row) {
@@ -328,24 +415,24 @@ public class GameLoop {
             return;
         }
 
-        if (robotHp[row][col] <= 0) {
-            robotHp[row][col] = ROBOT_MAX_HP;
-        }
-
-        robotHp[row][col] = robotHp[row][col] - 1;
-        if (robotHp[row][col] <= 0) {
-            grid[row][col] = ' ';
-            robotHp[row][col] = 0;
-            score = score + 50;
+        for (int i = 0; i < robotCount; i++) {
+            if (robots[i] != null && robots[i].life > 0 && robots[i].x == col && robots[i].y == row) {
+                robots[i].hp = robots[i].hp - 1;
+                if (robots[i].hp <= 0) {
+                    grid[row][col] = ' ';
+                    robots[i].life = 0;
+                    score = score + 50;
+                }
+                return;
+            }
         }
     }
 
 
-    private void syncRobotPositionOnGrid(Robot robo) {
+    private void syncAllRobotsOnGrid() {
         char[][] grid = maze.getGrid();
 
-        // First, clear any old 'X' that might belong to this robot
-        // (This is a simple approach; for better performance, store oldX/oldY)
+        // Clear all robot markers from grid
         for (int r = 0; r < GameConstants.MAZE_ROWS; r++) {
             for (int c = 0; c < GameConstants.MAZE_COLS; c++) {
                 if (grid[r][c] == 'X') grid[r][c] = ' ';
@@ -354,14 +441,14 @@ public class GameLoop {
 
         // Place all alive robots back on the grid
         for (int i = 0; i < robotCount; i++) {
-            if (robots[i].life > 0) {
+            if (robots[i] != null && robots[i].life > 0) {
                 grid[robots[i].y][robots[i].x] = 'X';
             }
         }
     }
 
     private void drawBackpack(Player player) {
-        int leftX = 57;
+        int leftX = getPanelX() + 7;
         int topY = 11;
         int capacity = player.getBackpackCapacity();
 
@@ -387,14 +474,19 @@ public class GameLoop {
     }
 
     private void clearRightPanel() {
+        int clearX = 46;
+        if (activeScreen == 2) {
+            clearX = 70;
+        }
+
         for (int r = 0; r < GameConstants.MAZE_ROWS; r = r + 1) {
-            console.getTextWindow().setCursorPosition(46, r);
-            console.getTextWindow().output("                              ");
+            console.getTextWindow().setCursorPosition(clearX, r);
+            console.getTextWindow().output("                                                        ");
         }
     }
 
     private void drawInputQueue() {
-        int x = 50;
+        int x = getPanelX();
         int y = 0;
 
         console.getTextWindow().setCursorPosition(x, y);
@@ -411,23 +503,34 @@ public class GameLoop {
     }
 
     private void drawIndicators(long elapsedSeconds) {
-        int x = 50;
+        int x = getPanelX();
         int y = 5;
 
         console.getTextWindow().setCursorPosition(x, y);
-        console.getTextWindow().output("Time     : " + elapsedSeconds + "   ");
+        console.getTextWindow().output("Time     : " + elapsedSeconds + "      ");
 
         console.getTextWindow().setCursorPosition(x, y + 1);
-        console.getTextWindow().output("Score    : " + score + "   ");
+        console.getTextWindow().output("Score    : " + score + "      ");
 
         console.getTextWindow().setCursorPosition(x, y + 2);
-        console.getTextWindow().output("Fireball : " + fireballCount + "   ");
+        console.getTextWindow().output("Fireball : " + fireballCount + "      ");
 
         console.getTextWindow().setCursorPosition(x, y + 3);
-        console.getTextWindow().output("Life     : " + life + "   ");
+        console.getTextWindow().output("Life     : " + life + "      ");
 
         console.getTextWindow().setCursorPosition(x, y + 4);
         console.getTextWindow().output("Storage  : " + storageMode + "   ");
+    }
+
+    private int getPanelX() {
+        if (activeScreen == 2) {
+            return 74;
+        }
+        return 50;
+    }
+
+    private long getElapsedSeconds() {
+        return (long) elapsedTicks * GameConstants.TIME_UNIT_MS / 1000;
     }
 
     private void initInputQueueAndPlaceFirstTen() {
@@ -495,13 +598,12 @@ public class GameLoop {
                 continue;
             }
 
-            grid[row][col] = element;
             if (element == 'X') {
-                robotHp[row][col] = ROBOT_MAX_HP;
-                if (robotCount < robots.length) {
-                    robots[robotCount] = new Robot(col, row);
-                    robotCount++;
+                if (addRobot(col, row)) {
+                    grid[row][col] = element;
                 }
+            } else {
+                grid[row][col] = element;
             }
             return;
         }
@@ -513,6 +615,61 @@ public class GameLoop {
             text = text + inputQueue[i];
         }
         return text;
+    }
+
+    // Draws infix and postfix expression lines at the bottom of the tree screen.
+    private void drawTreeExpression() {
+        String infixText = "";
+        String postfixText = "";
+        if (expressionReady) {
+            infixText = expressionInfix;
+            postfixText = expressionPostfix;
+        }
+
+        console.getTextWindow().setCursorPosition(0, 19);
+        console.getTextWindow().output("Expression");
+        console.getTextWindow().setCursorPosition(0, 20);
+        console.getTextWindow().output("Infix   : " + infixText);
+        console.getTextWindow().setCursorPosition(0, 21);
+        console.getTextWindow().output("Postfix : " + postfixText);
+    }
+
+    private void drawTableScreen() {
+        long elapsed = getElapsedSeconds();
+
+        console.getTextWindow().setCursorPosition(0, 0);
+        console.getTextWindow().output("--- TABLE SCREEN ---");
+
+        clearRightPanel();
+        drawInputQueue();
+        drawIndicators(elapsed);
+        drawBackpack(player);
+
+        if (!expressionReady) {
+            console.getTextWindow().setCursorPosition(0, 2);
+            console.getTextWindow().output("Finish a valid tree with F to compute the table.");
+            return;
+        }
+
+        console.getTextWindow().setCursorPosition(0, 2);
+        console.getTextWindow().output("Expression");
+        console.getTextWindow().setCursorPosition(0, 3);
+        console.getTextWindow().output("Infix   : " + expressionInfix);
+        console.getTextWindow().setCursorPosition(0, 4);
+        console.getTextWindow().output("Postfix : " + expressionPostfix);
+
+        Expression expression = new Expression(tree);
+        boolean[] results = expression.evaluateAllRows();
+
+        console.getTextWindow().setCursorPosition(0, 6);
+        console.getTextWindow().output("ABCD | Result");
+        console.getTextWindow().setCursorPosition(0, 7);
+        console.getTextWindow().output("-------------");
+
+        for (int row = 0; row < results.length; row = row + 1) {
+            console.getTextWindow().setCursorPosition(0, 8 + row);
+            console.getTextWindow().output(Expression.formatRow(row, results[row]));
+        }
     }
 
     private void sleep(int ms) {

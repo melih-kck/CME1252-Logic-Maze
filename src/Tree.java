@@ -22,6 +22,7 @@ public class Tree {
         cursor = root;
     }
 
+    // Builds the fixed 31-node tree pattern required by the project.
     private Node buildTemplate(int id, Node parent) {
         if (id > 31) return null;
         Node node = new Node(id, parent);
@@ -30,12 +31,36 @@ public class Tree {
         return node;
     }
 
-    public void moveUp() { if (cursor.parent != null) cursor = cursor.parent; }
-    public void moveLeft() { if (cursor.left != null) cursor = cursor.left; }
-    public void moveRight() { if (cursor.right != null) cursor = cursor.right; }
+    public boolean moveUp() {
+        if (cursor.parent != null) {
+            cursor = cursor.parent;
+            return true;
+        }
+        return false;
+    }
 
-    public void placeSymbol(char s) {
+    public boolean moveLeft() {
+        if (cursor.left != null) {
+            cursor = cursor.left;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean moveRight() {
+        if (cursor.right != null) {
+            cursor = cursor.right;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean placeSymbol(char s) {
+        if (cursor.symbol != ' ') {
+            return false;
+        }
         cursor.symbol = s;
+        return true;
     }
 
     public char removeSymbol() {
@@ -116,6 +141,7 @@ public class Tree {
         return validateNode(root);
     }
 
+    // Variables are leaves, unary operators use left child, binary operators use both.
     private boolean validateNode(Node node) {
         if (node == null || node.symbol == ' ') return true;
         char s = node.symbol;
@@ -134,7 +160,12 @@ public class Tree {
 
     private int countVariables(Node node) {
         if (node == null || node.symbol == ' ') return 0;
-        int count = LogicSymbol.isVariableSymbol(node.symbol) ? 1 : 0;
+        int count;
+        if (LogicSymbol.isVariableSymbol(node.symbol)) {
+            count = 1;
+        } else {
+            count = 0;
+        }
         return count + countVariables(node.left) + countVariables(node.right);
     }
 
