@@ -50,6 +50,7 @@ public class Tree {
 
         renderNode(console, root, 35, 4, 16);
 
+
     }
 
     private void renderNode(Console console, Node node, int x, int y, int xOffset) {
@@ -133,8 +134,13 @@ public class Tree {
     }
 
     private int countVariables(Node node) {
-        if (node == null || node.symbol == ' ') return 0;
-        int count = LogicSymbol.isVariableSymbol(node.symbol) ? 1 : 0;
+
+        if (node == null || node.symbol == ' ') { return 0;}
+        int count;
+
+        if (LogicSymbol.isVariableSymbol(node.symbol)) { count = 1;}
+        else { count = 0;}
+
         return count + countVariables(node.left) + countVariables(node.right);
     }
 
