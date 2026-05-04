@@ -1,8 +1,9 @@
 import java.util.Random;
 
 public class Robot {
-    public int x, y; // locations
+    public int x, y;
     public int life = 1000;
+    public int hp = 1;  // Hit points: robot dies when hp reaches 0
 
     private Random rnd = new Random();
     public int roboMode = 0;
@@ -32,7 +33,7 @@ public class Robot {
 
             for (int r = 0; r < map.length; r++) {
                 for (int c = 0; c < map[0].length; c++) {
-                    if (isCollectible(map[r][c])) { // Use your existing helper!
+                    if (isCollectible(map[r][c])) {
                         int dist = Math.abs(x - c) + Math.abs(y - r);
                         if (dist < minDistance) {
                             minDistance = dist;
@@ -48,18 +49,18 @@ public class Robot {
                 int dy = targetY - y;
 
                 if (Math.abs(dx) > Math.abs(dy)) {
-                    if (dx > 0 && map[y][x + 1] != '#') x++;
-                    else if (dx < 0 && map[y][x - 1] != '#') x--;
-                    else if (dy > 0 && map[y + 1][x] != '#') y++;
-                    else if (dy < 0 && map[y - 1][x] != '#') y--;
+                    if (dx > 0 && canRobotStepTo(map, x + 1, y)) x++;
+                    else if (dx < 0 && canRobotStepTo(map, x - 1, y)) x--;
+                    else if (dy > 0 && canRobotStepTo(map, x, y + 1)) y++;
+                    else if (dy < 0 && canRobotStepTo(map, x, y - 1)) y--;
                 } else {
-                    if (dy > 0 && map[y + 1][x] != '#') y++;
-                    else if (dy < 0 && map[y - 1][x] != '#') y--;
-                    else if (dx > 0 && map[y][x + 1] != '#') x++;
-                    else if (dx < 0 && map[y][x - 1] != '#') x--;
+                    if (dy > 0 && canRobotStepTo(map, x, y + 1)) y++;
+                    else if (dy < 0 && canRobotStepTo(map, x, y - 1)) y--;
+                    else if (dx > 0 && canRobotStepTo(map, x + 1, y)) x++;
+                    else if (dx < 0 && canRobotStepTo(map, x - 1, y)) x--;
                 }
             } else {
-                // if there is no treasure nearby move like mode 0 (random)
+                // If there is no symbol target, fall back to random movement.
                 int dir = rnd.nextInt(4) + 1;
                 if (dir == 1) y--; else if (dir == 2) x++; else if (dir == 3) y++; else if (dir == 4) x--;
             }
@@ -78,13 +79,13 @@ public class Robot {
         boolean collision = false;
 
 
-        if (y < 0 || y >= map.length || x < 0 || x >= map[0].length || map[y][x] == '#' || (x == ax && y == ay)) {
+        if (!canRobotStepTo(map, x, y) || (x == ax && y == ay)) {
             collision = true;
         }
 
         // Robot collision control
         for (int i = 0; i < robotCount; i++) {
-            if (i != currentRobotIndex && robots[i].life > 0) {
+            if (i != currentRobotIndex && robots[i] != null && robots[i].life > 0) {
                 if (x == robots[i].x && y == robots[i].y) {
                     collision = true;
                     break;
@@ -102,15 +103,24 @@ public class Robot {
         char cell = map[y][x];
         if (cell == 'A' || cell == 'B' || cell == 'C' || cell == 'D'
                 || cell == 'a' || cell == 'b' || cell == 'c' || cell == 'd'
-                || cell == '~' || cell == '˜' || cell == '^' || cell == 'v'
+                || cell == '~' || cell == '^' || cell == 'v'
                 || cell == '+' || cell == '>' || cell == '=') {
             map[y][x] = ' ';
         }
     }
+
+    private boolean canRobotStepTo(char[][] map, int nextX, int nextY) {
+        if (nextY < 0 || nextY >= map.length || nextX < 0 || nextX >= map[0].length) {
+            return false;
+        }
+        char cell = map[nextY][nextX];
+        return cell != '#' && cell != '@' && cell != 'X';
+    }
+
     private boolean isCollectible(char ch) {
         return ch == 'A' || ch == 'B' || ch == 'C' || ch == 'D'
                 || ch == 'a' || ch == 'b' || ch == 'c' || ch == 'd'
-                || ch == '~' || ch == '˜' || ch == '^' || ch == 'v'
+                || ch == '~' || ch == '^' || ch == 'v'
                 || ch == '+' || ch == '>' || ch == '=';
     }
 }

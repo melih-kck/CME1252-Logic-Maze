@@ -1,7 +1,7 @@
 import java.util.Scanner;
 import java.io.File;
 
-public class Maze {
+public final class Maze {
     public char[][] grid;
 
     public Maze() throws Exception {
