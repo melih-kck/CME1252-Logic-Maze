@@ -30,11 +30,11 @@ public class Robot {
         else if (roboMode == 1) {
             int targetX = -1; int targetY = -1;
             int minDistance = 9999;
-
+            int dist = 0 ;
             for (int r = 0; r < map.length; r++) {
                 for (int c = 0; c < map[0].length; c++) {
                     if (isCollectible(map[r][c])) {
-                        int dist = Math.abs(x - c) + Math.abs(y - r);
+                         dist = Math.abs(x - c) + Math.abs(y - r);
                         if (dist < minDistance) {
                             minDistance = dist;
                             targetX = c;
