@@ -1,5 +1,5 @@
-public class Expression {
-
+public class Expression
+{
 
     private Tree tree;
 
