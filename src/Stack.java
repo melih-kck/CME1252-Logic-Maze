@@ -1,14 +1,18 @@
-public class Stack {
+public class Stack
+{
     private char[] data;
     private int top;
 
-    public Stack(int capacity) {
+    public Stack(int capacity)
+    {
         data = new char[capacity];
         top = -1;
     }
 
-    public boolean push(char value) {
-        if (isFull()) {
+    public boolean push(char value)
+    {
+        if (isFull())
+        {
             return false;
         }
         top = top + 1;
@@ -16,8 +20,10 @@ public class Stack {
         return true;
     }
 
-    public char pop() {
-        if (isEmpty()) {
+    public char pop()
+    {
+        if (isEmpty())
+        {
             return '\0';
         }
         char value = data[top];
@@ -25,32 +31,40 @@ public class Stack {
         return value;
     }
 
-    public char peek() {
-        if (isEmpty()) {
+    public char peek()
+    {
+        if (isEmpty())
+        {
             return '\0';
         }
         return data[top];
     }
 
-    public boolean isEmpty() {
+    public boolean isEmpty()
+    {
         return top == -1;
     }
 
-    public boolean isFull() {
+    public boolean isFull()
+    {
         return top == data.length - 1;
     }
 
-    public int size() {
+    public int size()
+    {
         return top + 1;
     }
 
-    public int capacity() {
+    public int capacity()
+    {
         return data.length;
     }
 
-    public char[] snapshot() {
+    public char[] snapshot()
+    {
         char[] out = new char[size()];
-        for (int i = 0; i < size(); i = i + 1) {
+        for (int i = 0; i < size(); i = i + 1)
+        {
             out[i] = data[i];
         }
         return out;

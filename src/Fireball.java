@@ -1,4 +1,5 @@
-public class Fireball {
+public class Fireball
+{
     private int packedCount = 0;
 
     private boolean active = false;
@@ -7,39 +8,47 @@ public class Fireball {
     private int dx = 0;
     private int dy = 0;
 
-    public void addPacked() {
+    public void addPacked()
+    {
         packedCount = packedCount + 1;
     }
 
-    public int getPackedCount() {
+    public int getPackedCount()
+    {
         return packedCount;
     }
 
-    public boolean isActive() {
+    public boolean isActive()
+    {
         return active;
     }
 
-    public int getCol() {
+    public int getCol()
+    {
         return x;
     }
 
-    public int getRow() {
+    public int getRow()
+    {
         return y;
     }
 
-    public boolean fire(int startCol, int startRow, int direction) {
-        if (packedCount <= 0 || active) {
+    public boolean fire(int startCol, int startRow, int direction)
+    {
+        if (packedCount <= 0 || active)
+        {
             return false;
         }
 
         int ndx = 0;
         int ndy = 0;
-        if (direction == Direction.UP) { ndy = -1; }
-        if (direction == Direction.DOWN) { ndy = 1; }
-        if (direction == Direction.LEFT) { ndx = -1; }
-        if (direction == Direction.RIGHT) { ndx = 1; }
+        if (direction == GameLoop.Direction.UP) { ndy = -1; }
+        if (direction == GameLoop.Direction.DOWN) { ndy = 1; }
+        if (direction == GameLoop.Direction.LEFT) { ndx = -1; }
+        if (direction == GameLoop.Direction.RIGHT) { ndx = 1; }
 
-        if (ndx == 0 && ndy == 0) {
+        if (ndx == 0 && ndy == 0)
+        {
             return false;
         }
 
@@ -53,15 +62,18 @@ public class Fireball {
     }
 
     // Returns 1 on a robot hit; non-robot objects stop the fireball.
-    public int update(char[][] grid) {
-        if (!active) {
+    public int update(char[][] grid)
+    {
+        if (!active)
+        {
             return 0;
         }
 
         int nextX = x + dx;
         int nextY = y + dy;
 
-        if (nextY < 0 || nextY >= grid.length || nextX < 0 || nextX >= grid[0].length) {
+        if (nextY < 0 || nextY >= grid.length || nextX < 0 || nextX >= grid[0].length)
+        {
             deactivate();
             return 0;
         }
@@ -69,14 +81,19 @@ public class Fireball {
         char target = grid[nextY][nextX];
 
         int destroyed = 0;
-        if (target == 'X') {
+        if (target == 'X')
+        {
             destroyed = 1;
             x = nextX;
             y = nextY;
-        } else if (target == ' ' || target == '\0') {
+        }
+        else if (target == ' ' || target == '\0')
+        {
             x = nextX;
             y = nextY;
-        } else {
+        }
+        else
+        {
             // Hit a wall or other obstacle — stop the fireball.
             deactivate();
             return 0;
@@ -85,7 +102,8 @@ public class Fireball {
         return destroyed;
     }
 
-    public void deactivate() {
+    public void deactivate()
+    {
         active = false;
         dx = 0;
         dy = 0;
