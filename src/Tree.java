@@ -86,7 +86,7 @@ public class Tree
     public void drawTree(Console console)
     {
         console.getTextWindow().setCursorPosition(24, 1);
-        console.getTextWindow().output("--- EXPRESSION TREE ---");
+        ConsoleColors.print(console, "--- EXPRESSION TREE ---", ConsoleColors.TITLE);
 
         renderNode(console, root, 35, 4, 16);
 
@@ -100,41 +100,43 @@ public class Tree
 
         if (node == cursor)
         {
-            String content;
+            char content;
             if (node.symbol == ' ')
             {
-                content = ".";
+                content = '.';
             }
             else
             {
-                content = String.valueOf(node.symbol);
+                content = node.symbol;
             }
-            console.getTextWindow().output("[" + content + "]");
+            ConsoleColors.printCursorSymbol(console, content);
         }
         else
         {
-            String content;
+            char content;
             if (node.symbol == ' ')
             {
-                content = ".";
+                content = '.';
             }
             else
             {
-                content = String.valueOf(node.symbol);
+                content = node.symbol;
             }
-            console.getTextWindow().output(" " + content + " ");
+            console.getTextWindow().output(" ");
+            ConsoleColors.print(console, content);
+            console.getTextWindow().output(" ");
         }
 
         if (node.left != null)
         {
             console.getTextWindow().setCursorPosition(x - (xOffset/2), y + 1);
-            console.getTextWindow().output("/");
+            ConsoleColors.print(console, '/', ConsoleColors.WALL);
             renderNode(console, node.left, x - xOffset, y + 2, xOffset / 2);
         }
         if (node.right != null)
         {
             console.getTextWindow().setCursorPosition(x + (xOffset/2) + 2, y + 1);
-            console.getTextWindow().output("\\");
+            ConsoleColors.print(console, '\\', ConsoleColors.WALL);
             renderNode(console, node.right, x + xOffset, y + 2, xOffset / 2);
         }
     }
