@@ -1,13 +1,16 @@
 import enigma.console.Console;
 
-public class Tree {
+public class Tree
+{
 
-    class Node {
+    class Node
+    {
         char symbol;
         Node left, right, parent;
         int id;
 
-        Node(int id, Node parent) {
+        Node(int id, Node parent)
+        {
             this.id = id;
             this.parent = parent;
             this.symbol = ' ';
@@ -17,13 +20,15 @@ public class Tree {
     private Node root;
     private Node cursor;
 
-    public Tree() {
+    public Tree()
+    {
         root = buildTemplate(1, null);
         cursor = root;
     }
 
     // Builds the fixed 31-node tree pattern required by the project.
-    private Node buildTemplate(int id, Node parent) {
+    private Node buildTemplate(int id, Node parent)
+    {
         if (id > 31) return null;
         Node node = new Node(id, parent);
         node.left = buildTemplate(id * 2, node);
@@ -31,88 +36,113 @@ public class Tree {
         return node;
     }
 
-    public boolean moveUp() {
-        if (cursor.parent != null) {
+    public boolean moveUp()
+    {
+        if (cursor.parent != null)
+        {
             cursor = cursor.parent;
             return true;
         }
         return false;
     }
 
-    public boolean moveLeft() {
-        if (cursor.left != null) {
+    public boolean moveLeft()
+    {
+        if (cursor.left != null)
+        {
             cursor = cursor.left;
             return true;
         }
         return false;
     }
 
-    public boolean moveRight() {
-        if (cursor.right != null) {
+    public boolean moveRight()
+    {
+        if (cursor.right != null)
+        {
             cursor = cursor.right;
             return true;
         }
         return false;
     }
 
-    public boolean placeSymbol(char s) {
-        if (cursor.symbol != ' ') {
+    public boolean placeSymbol(char s)
+    {
+        if (cursor.symbol != ' ')
+        {
             return false;
         }
         cursor.symbol = s;
         return true;
     }
 
-    public char removeSymbol() {
+    public char removeSymbol()
+    {
         char temp = cursor.symbol;
         cursor.symbol = ' ';
         return temp;
     }
 
-    public void drawTree(Console console) {
+    public void drawTree(Console console)
+    {
         console.getTextWindow().setCursorPosition(24, 1);
-        console.getTextWindow().output("--- EXPRESSION TREE ---");
+        ConsoleColors.print(console, "--- EXPRESSION TREE ---", ConsoleColors.TITLE);
 
         renderNode(console, root, 35, 4, 16);
 
     }
 
-    private void renderNode(Console console, Node node, int x, int y, int xOffset) {
+    private void renderNode(Console console, Node node, int x, int y, int xOffset)
+    {
         if (node == null || y > 18) return;
 
         console.getTextWindow().setCursorPosition(x, y);
 
-        if (node == cursor) {
-            String content;
-            if (node.symbol == ' ') {
-                content = ".";
-            } else {
-                content = String.valueOf(node.symbol);
+        if (node == cursor)
+        {
+            char content;
+            if (node.symbol == ' ')
+            {
+                content = '.';
             }
-            console.getTextWindow().output("[" + content + "]");
-        } else {
-            String content;
-            if (node.symbol == ' ') {
-                content = ".";
-            } else {
-                content = String.valueOf(node.symbol);
+            else
+            {
+                content = node.symbol;
             }
-            console.getTextWindow().output(" " + content + " ");
+            ConsoleColors.printCursorSymbol(console, content);
+        }
+        else
+        {
+            char content;
+            if (node.symbol == ' ')
+            {
+                content = '.';
+            }
+            else
+            {
+                content = node.symbol;
+            }
+            console.getTextWindow().output(" ");
+            ConsoleColors.print(console, content);
+            console.getTextWindow().output(" ");
         }
 
-        if (node.left != null) {
+        if (node.left != null)
+        {
             console.getTextWindow().setCursorPosition(x - (xOffset/2), y + 1);
-            console.getTextWindow().output("/");
+            ConsoleColors.print(console, '/', ConsoleColors.WALL);
             renderNode(console, node.left, x - xOffset, y + 2, xOffset / 2);
         }
-        if (node.right != null) {
+        if (node.right != null)
+        {
             console.getTextWindow().setCursorPosition(x + (xOffset/2) + 2, y + 1);
-            console.getTextWindow().output("\\");
+            ConsoleColors.print(console, '\\', ConsoleColors.WALL);
             renderNode(console, node.right, x + xOffset, y + 2, xOffset / 2);
         }
     }
 
-    public String getInfix(Node node) {
+    public String getInfix(Node node)
+    {
         if (node == null || node.symbol == ' ') return "";
         if (LogicSymbol.isVariableSymbol(node.symbol)) return String.valueOf(node.symbol);
 
@@ -122,7 +152,8 @@ public class Tree {
         return "(" + getInfix(node.left) + " " + node.symbol + " " + getInfix(node.right) + ")";
     }
 
-    public String getPostfix(Node node) {
+    public String getPostfix(Node node)
+    {
         if (node == null || node.symbol == ' ') return "";
         if (LogicSymbol.isVariableSymbol(node.symbol)) return String.valueOf(node.symbol);
 
@@ -135,64 +166,78 @@ public class Tree {
     public String getFullInfix() { return getInfix(root); }
     public String getFullPostfix() { return getPostfix(root); }
 
-    public boolean checkSyntax() {
+    public boolean checkSyntax()
+    {
         if (countVariables(root) < 3) return false;
         if (getDepth(root) < 3) return false;
         return validateNode(root);
     }
 
-    // Variables are leaves, unary operators use left child, binary operators use both.
-    private boolean validateNode(Node node) {
+    private boolean validateNode(Node node)
+    {
         if (node == null || node.symbol == ' ') return true;
         char s = node.symbol;
 
-        if (LogicSymbol.isVariableSymbol(s)) {
+        if (LogicSymbol.isVariableSymbol(s))
+        {
             return (node.left == null || node.left.symbol == ' ') && (node.right == null || node.right.symbol == ' ');
         }
-        if (LogicSymbol.isUnaryOperatorSymbol(s)) {
+        if (LogicSymbol.isUnaryOperatorSymbol(s))
+        {
             return (node.left != null && node.left.symbol != ' ') && (node.right == null || node.right.symbol == ' ') && validateNode(node.left);
         }
-        if (LogicSymbol.isBinaryOperatorSymbol(s)) {
+        if (LogicSymbol.isBinaryOperatorSymbol(s))
+        {
             return (node.left != null && node.left.symbol != ' ') && (node.right != null && node.right.symbol != ' ') && validateNode(node.left) && validateNode(node.right);
         }
         return false;
     }
 
-    private int countVariables(Node node) {
+    private int countVariables(Node node)
+    {
         if (node == null || node.symbol == ' ') return 0;
         int count;
-        if (LogicSymbol.isVariableSymbol(node.symbol)) {
+        if (LogicSymbol.isVariableSymbol(node.symbol))
+        {
             count = 1;
-        } else {
+        }
+        else
+        {
             count = 0;
         }
         return count + countVariables(node.left) + countVariables(node.right);
     }
 
-    private int getDepth(Node node) {
+    private int getDepth(Node node)
+    {
         if (node == null || node.symbol == ' ') return 0;
         return 1 + Math.max(getDepth(node.left), getDepth(node.right));
     }
 
-    public int countTotalNodes(Node node) {
+    public int countTotalNodes(Node node)
+    {
         if (node == null || node.symbol == ' ') return 0;
         return 1 + countTotalNodes(node.left) + countTotalNodes(node.right);
     }
 
     public Node getRoot() { return root; }
 
-    public void moveToNextEmpty() {
+    public void moveToNextEmpty()
+    {
 
-        for (int i = 1; i <= 31; i++) {
+        for (int i = 1; i <= 31; i++)
+        {
             Node target = findNodeById(root, i);
-            if (target != null && target.symbol == ' ') {
+            if (target != null && target.symbol == ' ')
+            {
                 cursor = target;
                 return;
             }
         }
     }
 
-    private Node findNodeById(Node node, int targetId) {
+    private Node findNodeById(Node node, int targetId)
+    {
         if (node == null) return null;
         if (node.id == targetId) return node;
 
@@ -202,7 +247,8 @@ public class Tree {
         return findNodeById(node.right, targetId);
     }
 
-    public char getCursorSymbol() {
+    public char getCursorSymbol()
+    {
         return cursor.symbol;
     }
 
