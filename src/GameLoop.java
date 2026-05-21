@@ -447,11 +447,11 @@ public class GameLoop
             {
                 if (r == player.getRow() && c == player.getCol())
                 {
-                    console.getTextWindow().output('P');
+                    ConsoleColors.printPlayer(console);
                 }
                 else if (fireball.isActive() && r == fireball.getRow() && c == fireball.getCol())
                 {
-                    console.getTextWindow().output('o');
+                    ConsoleColors.print(console, 'o');
                 }
                 else
                 {
@@ -460,7 +460,15 @@ public class GameLoop
                     {
                         drawCell = ' ';
                     }
-                    console.getTextWindow().output(drawCell);
+
+                    if (drawCell == 'X')
+                    {
+                        ConsoleColors.printRobot(console, getRobotModeAt(c, r));
+                    }
+                    else
+                    {
+                        ConsoleColors.print(console, drawCell);
+                    }
                 }
             }
         }
@@ -688,7 +696,7 @@ public class GameLoop
         {
             int row = topY + (capacity - 1 - i);
             console.getTextWindow().setCursorPosition(leftX + 2, row);
-            console.getTextWindow().output(items[i]);
+            ConsoleColors.print(console, items[i]);
         }
     }
 
@@ -719,7 +727,10 @@ public class GameLoop
         console.getTextWindow().output("<<<<<<<<<<");
 
         console.getTextWindow().setCursorPosition(x, y + 2);
-        console.getTextWindow().output(queueToString());
+        for (int i = 0; i < inputQueue.length; i = i + 1)
+        {
+            ConsoleColors.print(console, inputQueue[i]);
+        }
 
         console.getTextWindow().setCursorPosition(x, y + 3);
         console.getTextWindow().output("<<<<<<<<<<");
@@ -874,11 +885,13 @@ public class GameLoop
         }
 
         console.getTextWindow().setCursorPosition(0, 19);
-        console.getTextWindow().output("Expression");
+        ConsoleColors.print(console, "Expression", ConsoleColors.TITLE);
         console.getTextWindow().setCursorPosition(0, 20);
-        console.getTextWindow().output("Infix   : " + infixText);
+        ConsoleColors.print(console, "Infix   : ", ConsoleColors.TITLE);
+        ConsoleColors.print(console, infixText, ConsoleColors.NORMAL);
         console.getTextWindow().setCursorPosition(0, 21);
-        console.getTextWindow().output("Postfix : " + postfixText);
+        ConsoleColors.print(console, "Postfix : ", ConsoleColors.TITLE);
+        ConsoleColors.print(console, postfixText, ConsoleColors.NORMAL);
     }
 
     private void drawTableScreen()
@@ -886,7 +899,7 @@ public class GameLoop
         long elapsed = getElapsedSeconds();
 
         console.getTextWindow().setCursorPosition(0, 0);
-        console.getTextWindow().output("--- TABLE SCREEN ---");
+        ConsoleColors.print(console, "--- TABLE SCREEN ---", ConsoleColors.TITLE);
 
         clearRightPanel();
         drawInputQueue();
@@ -896,16 +909,18 @@ public class GameLoop
         if (!expressionReady)
         {
             console.getTextWindow().setCursorPosition(0, 2);
-            console.getTextWindow().output("Finish a valid tree with F to compute the table.");
+            ConsoleColors.print(console, "Finish a valid tree with F to compute the table.", ConsoleColors.TITLE);
             return;
         }
 
         console.getTextWindow().setCursorPosition(0, 2);
-        console.getTextWindow().output("Expression");
+            ConsoleColors.print(console, "Expression", ConsoleColors.TITLE);
         console.getTextWindow().setCursorPosition(0, 3);
-        console.getTextWindow().output("Infix   : " + expressionInfix);
+            ConsoleColors.print(console, "Infix   : ", ConsoleColors.TITLE);
+            ConsoleColors.print(console, expressionInfix, ConsoleColors.NORMAL);
         console.getTextWindow().setCursorPosition(0, 4);
-        console.getTextWindow().output("Postfix : " + expressionPostfix);
+            ConsoleColors.print(console, "Postfix : ", ConsoleColors.TITLE);
+            ConsoleColors.print(console, expressionPostfix, ConsoleColors.NORMAL);
 
         boolean[] results;
         if (truthTableResults != null)
@@ -918,16 +933,16 @@ public class GameLoop
         }
 
         console.getTextWindow().setCursorPosition(0, 6);
-        console.getTextWindow().output("ABCD | Result");
+        ConsoleColors.print(console, "ABCD | Result", ConsoleColors.TITLE);
         console.getTextWindow().setCursorPosition(0, 7);
-        console.getTextWindow().output("-------------");
+        ConsoleColors.print(console, "-------------", ConsoleColors.WALL);
 
         for (int row = 0; row < results.length; row = row + 1)
         {
             console.getTextWindow().setCursorPosition(0, 8 + row);
             if (guessingTruthTable && row == missingSlotRow)
             {
-                console.getTextWindow().output(Expression.formatRow(row, "?"));
+                ConsoleColors.print(console, Expression.formatRow(row, "?"), ConsoleColors.QUESTION);
             }
             else
             {
@@ -938,18 +953,20 @@ public class GameLoop
         if (guessingTruthTable)
         {
             console.getTextWindow().setCursorPosition(25, 8);
-            console.getTextWindow().output("Guess the missing value (?) by typing 0 or 1.");
+            ConsoleColors.print(console, "Guess the missing value (?) by typing 0 or 1.", ConsoleColors.QUESTION);
         }
         else
         {
             console.getTextWindow().setCursorPosition(25, 8);
-            console.getTextWindow().output("Simplify the K-Map (Quine-McCluskey)");
+            ConsoleColors.print(console, "Simplify the K-Map (Quine-McCluskey)", ConsoleColors.TITLE);
             console.getTextWindow().setCursorPosition(25, 10);
-            console.getTextWindow().output(tableFeedback);
+            ConsoleColors.print(console, tableFeedback, ConsoleColors.QUESTION);
             console.getTextWindow().setCursorPosition(25, 11);
-            console.getTextWindow().output("Enter simplified expression (use v, +, ^, ~):");
+            ConsoleColors.print(console, "Enter simplified expression (use v, +, ^, ~):", ConsoleColors.TITLE);
             console.getTextWindow().setCursorPosition(25, 12);
-            console.getTextWindow().output("> " + treeMessage + "_");
+            ConsoleColors.print(console, "> ", ConsoleColors.NORMAL);
+            ConsoleColors.print(console, treeMessage, ConsoleColors.QUESTION);
+            ConsoleColors.print(console, "_", ConsoleColors.NORMAL);
         }
     }
 
@@ -959,5 +976,17 @@ public class GameLoop
         while (System.currentTimeMillis() - start < ms)
         {
         }
+    }
+
+    private int getRobotModeAt(int col, int row)
+    {
+        for (int i = 0; i < robotCount; i = i + 1)
+        {
+            if (robots[i] != null && robots[i].life > 0 && robots[i].x == col && robots[i].y == row)
+            {
+                return robots[i].roboMode;
+            }
+        }
+        return 0;
     }
 }
