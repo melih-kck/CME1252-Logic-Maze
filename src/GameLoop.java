@@ -346,6 +346,7 @@ public class GameLoop
         if (activeScreen != 1)
             return;
 
+
         tick = tick + 1;
         elapsedTicks = elapsedTicks + 1;
         player.tickCooldown();
@@ -394,7 +395,7 @@ public class GameLoop
 
     private void clearWholeScreen()
     {
-        for (int r = 0; r < 30; r++)
+        for (int r = 0; r < 45; r++)
         {
             console.getTextWindow().setCursorPosition(0, r);
             console.getTextWindow().output("                                                                                                    ");
@@ -409,6 +410,8 @@ public class GameLoop
 
         if (activeScreen == 1)
         {
+            clearWholeScreen();
+            console.getTextWindow().setCursorPosition(0,0);
             drawMazeScreen(player);
         }
         else if (activeScreen == 2)
