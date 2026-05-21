@@ -74,12 +74,11 @@ public class GameLoop
                     System.exit(0);
                 }
 
-                if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; treeMessage = ""; }
-
-                if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; treeMessage = ""; }
-                if (e.getKeyCode() == KeyEvent.VK_2) { activeScreen = 2; treeMessage = ""; lastInput = Direction.NONE; }
-                if (e.getKeyCode() == KeyEvent.VK_3) { activeScreen = 3; treeMessage = ""; lastInput = Direction.NONE; }
-
+                if (!guessingTruthTable && (activeScreen != 3 && activeScreen != 4)) {
+                    if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; treeMessage = ""; }
+                    if (e.getKeyCode() == KeyEvent.VK_2) { activeScreen = 2; treeMessage = ""; lastInput = Direction.NONE; }
+                    if (e.getKeyCode() == KeyEvent.VK_3) { activeScreen = 3; treeMessage = ""; lastInput = Direction.NONE; }
+                }
 
                 if (activeScreen == 1)
                 {
@@ -474,10 +473,13 @@ public class GameLoop
         }
 
         long elapsed = getElapsedSeconds();
-        clearRightPanel();
-        drawInputQueue();
-        drawIndicators(elapsed);
-        drawBackpack(player);
+
+        if (activeScreen == 1) {
+            clearRightPanel();
+            drawInputQueue();
+            drawIndicators(elapsed);
+            drawBackpack(player);
+        }
 
         if (!treeMessage.isEmpty())
         {
@@ -900,11 +902,6 @@ public class GameLoop
 
         console.getTextWindow().setCursorPosition(0, 0);
         ConsoleColors.print(console, "--- TABLE SCREEN ---", ConsoleColors.TITLE);
-
-        clearRightPanel();
-        drawInputQueue();
-        drawIndicators(elapsed);
-        drawBackpack(player);
 
         if (!expressionReady)
         {
