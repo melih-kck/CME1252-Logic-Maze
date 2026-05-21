@@ -175,12 +175,12 @@ public class GameLoop
                                 guessingTruthTable = true;
                                 tableFeedback = "";
                             }
-                            else
-                            {
-                                score -= 10;
-                                treeMessage = "ERROR: Invalid expression! (-10 pts)";
-                                expressionReady = false;
-                            }
+                        }
+                        else
+                        {
+                            score -= 10;
+                            treeMessage = "ERROR: Invalid expression! (-10 pts)";
+                            expressionReady = false;
                         }
                     }
                 }
