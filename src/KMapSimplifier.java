@@ -2,8 +2,8 @@
 public final class KMapSimplifier
 {
     // Safe upper bounds for a 4-variable (16-row) truth table.
-    // Minterms : at most 16 (one per row).
-    // Implicants: the Quine-McCluskey expansion never exceeds 64 for 4 variables.
+    // at most 16 (one per row).
+    // the Quine-McCluskey expansion never exceeds 64 for 4 variables.
     private static final int MAX_MINTERMS   = 16;
     private static final int MAX_IMPLICANTS = 64;
 
