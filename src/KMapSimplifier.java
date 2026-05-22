@@ -1,8 +1,12 @@
-import java.util.ArrayList;
-
 // Simplifies a 4-variable boolean function using the Quine-McCluskey algorithm.
 public final class KMapSimplifier
 {
+    // Safe upper bounds for a 4-variable (16-row) truth table.
+    // Minterms : at most 16 (one per row).
+    // Implicants: the Quine-McCluskey expansion never exceeds 64 for 4 variables.
+    private static final int MAX_MINTERMS   = 16;
+    private static final int MAX_IMPLICANTS = 64;
+
     private KMapSimplifier()
     {
     }
@@ -15,33 +19,41 @@ public final class KMapSimplifier
             return "";
         }
 
-        ArrayList<Integer> minterms = new ArrayList<Integer>();
-        int universe = 0;
+        int[] minterms     = new int[MAX_MINTERMS];
+        int   mintermCount = 0;
+        int   universe     = 0;
+
         for (int rowIndex = 0; rowIndex < table.length; rowIndex++)
         {
             if (table[rowIndex])
             {
-                minterms.add(Integer.valueOf(rowIndex));
-                universe = universe | (1 << rowIndex);
+                minterms[mintermCount] = rowIndex;
+                mintermCount           = mintermCount + 1;
+                universe               = universe | (1 << rowIndex);
             }
         }
 
-        if (minterms.isEmpty())
+        if (mintermCount == 0)
         {
             return "0";
         }
-        if (minterms.size() == 16)
+        if (mintermCount == 16)
         {
             return "1";
         }
 
-        ArrayList<Implicant> primes = findPrimeImplicants(minterms);
-        ArrayList<Implicant> selected = selectCover(primes, minterms, universe);
+        //  prime implicants
+        Implicant[] primes     = new Implicant[MAX_IMPLICANTS];
+        int         primeCount = findPrimeImplicants(minterms, mintermCount, primes);
 
-        String[] terms = new String[selected.size()];
-        for (int selectedIndex = 0; selectedIndex < selected.size(); selectedIndex++)
+        // cover selection
+        Implicant[] selected      = new Implicant[MAX_IMPLICANTS];
+        int         selectedCount = selectCover(primes, primeCount, minterms, mintermCount, universe, selected);
+
+        String[] terms = new String[selectedCount];
+        for (int selectedIndex = 0; selectedIndex < selectedCount; selectedIndex++)
         {
-            terms[selectedIndex] = selected.get(selectedIndex).toTerm();
+            terms[selectedIndex] = selected[selectedIndex].toTerm();
         }
         sortTerms(terms);
 
@@ -57,153 +69,180 @@ public final class KMapSimplifier
         return result;
     }
 
-    // Stage 1: Generates all prime implicants by combining minterms that differ by one bit.
-    private static ArrayList<Implicant> findPrimeImplicants(ArrayList<Integer> minterms)
+    // Writes results into the primes[] array and returns how many were written.
+    private static int findPrimeImplicants(int[] minterms, int mintermCount, Implicant[] primes)
     {
-        ArrayList<Implicant> current = new ArrayList<Implicant>();
-        for (int mintermIndex = 0; mintermIndex < minterms.size(); mintermIndex++)
+        int primeCount = 0;
+
+        // Seed the first round with one implicant per minterm.
+        Implicant[] current      = new Implicant[MAX_IMPLICANTS];
+        int         currentCount = 0;
+
+        for (int mintermIndex = 0; mintermIndex < mintermCount; mintermIndex++)
         {
-            int term = minterms.get(mintermIndex).intValue();
-            current.add(new Implicant(term, 0, 1 << term));
+            int term              = minterms[mintermIndex];
+            current[currentCount] = new Implicant(term, 0, 1 << term);
+            currentCount          = currentCount + 1;
         }
 
-        ArrayList<Implicant> primes = new ArrayList<Implicant>();
-        while (!current.isEmpty())
+        while (currentCount > 0)
         {
-            boolean[] used = new boolean[current.size()];
-            ArrayList<Implicant> next = new ArrayList<Implicant>();
+            boolean[]   used      = new boolean[currentCount];
+            Implicant[] next      = new Implicant[MAX_IMPLICANTS];
+            int         nextCount = 0;
 
-            for (int firstIndex = 0; firstIndex < current.size(); firstIndex++)
+            for (int firstIndex = 0; firstIndex < currentCount; firstIndex++)
             {
-                for (int secondIndex = firstIndex + 1; secondIndex < current.size(); secondIndex++)
+                for (int secondIndex = firstIndex + 1; secondIndex < currentCount; secondIndex++)
                 {
-                    Implicant combined = current.get(firstIndex).combine(current.get(secondIndex));
+                    Implicant combined = current[firstIndex].combine(current[secondIndex]);
                     if (combined != null)
                     {
-                        used[firstIndex] = true;
+                        used[firstIndex]  = true;
                         used[secondIndex] = true;
-                        addUnique(next, combined);
+                        nextCount         = addUnique(next, nextCount, combined);
                     }
                 }
             }
 
-            for (int currentIndex = 0; currentIndex < current.size(); currentIndex++)
+            // Any implicant that was never merged is a prime implicant.
+            for (int currentIndex = 0; currentIndex < currentCount; currentIndex++)
             {
                 if (!used[currentIndex])
                 {
-                    addUnique(primes, current.get(currentIndex));
+                    primeCount = addUnique(primes, primeCount, current[currentIndex]);
                 }
             }
-            current = next;
+
+            current      = next;
+            currentCount = nextCount;
         }
-        return primes;
+
+        return primeCount;
     }
 
-    // Stage 2: Selects essential prime implicants, then brute-force covers the rest.
-    private static ArrayList<Implicant> selectCover(ArrayList<Implicant> primes, ArrayList<Integer> minterms, int universe)
+    // Writes chosen implicants into result[] and returns how many were written.
+    private static int selectCover(Implicant[] primes, int primeCount,
+                                   int[] minterms, int mintermCount,
+                                   int universe, Implicant[] result)
     {
-        boolean[] selected = new boolean[primes.size()];
-        int covered = 0;
+        boolean[] selected = new boolean[primeCount];
+        int       covered  = 0;
 
-        for (int mintermIndex = 0; mintermIndex < minterms.size(); mintermIndex++)
+        // Find essential prime implicants (those that uniquely cover a minterm).
+        for (int mintermIndex = 0; mintermIndex < mintermCount; mintermIndex++)
         {
-            int minterm = minterms.get(mintermIndex).intValue();
+            int minterm   = minterms[mintermIndex];
             int onlyIndex = -1;
-            int count = 0;
-            for (int primeIndex = 0; primeIndex < primes.size(); primeIndex++)
+            int count     = 0;
+
+            for (int primeIndex = 0; primeIndex < primeCount; primeIndex++)
             {
-                if (primes.get(primeIndex).covers(minterm))
+                if (primes[primeIndex].covers(minterm))
                 {
                     onlyIndex = primeIndex;
-                    count++;
+                    count     = count + 1;
                 }
             }
+
             if (count == 1 && onlyIndex != -1)
             {
                 selected[onlyIndex] = true;
             }
         }
 
-        for (int primeIndex = 0; primeIndex < selected.length; primeIndex++)
+        for (int primeIndex = 0; primeIndex < primeCount; primeIndex++)
         {
             if (selected[primeIndex])
             {
-                covered = covered | primes.get(primeIndex).covered;
+                covered = covered | primes[primeIndex].covered;
             }
         }
 
-        ArrayList<Integer> optional = new ArrayList<Integer>();
-        for (int primeIndex = 0; primeIndex < primes.size(); primeIndex++)
+        // Collect non-essential prime implicants.
+        int[] optional      = new int[primeCount];
+        int   optionalCount = 0;
+
+        for (int primeIndex = 0; primeIndex < primeCount; primeIndex++)
         {
             if (!selected[primeIndex])
             {
-                optional.add(Integer.valueOf(primeIndex));
+                optional[optionalCount] = primeIndex;
+                optionalCount           = optionalCount + 1;
             }
         }
 
-        int remaining = universe & ~covered;
-        int bestMask = 0;
-        int bestLiteralCost = Integer.MAX_VALUE;
-        int bestTermCost = Integer.MAX_VALUE;
+        // Brute-force all subsets of optional implicants to cover remaining minterms.
+        int remaining        = universe & ~covered;
+        int bestMask         = 0;
+        int bestLiteralCost  = Integer.MAX_VALUE;
+        int bestTermCost     = Integer.MAX_VALUE;
 
-        int combinations = 1 << optional.size();
+        int combinations = 1 << optionalCount;
         for (int mask = 0; mask < combinations; mask++)
         {
             int subsetCover = 0;
             int literalCost = 0;
-            int termCost = 0;
+            int termCost    = 0;
 
-            for (int bit = 0; bit < optional.size(); bit++)
+            for (int bit = 0; bit < optionalCount; bit++)
             {
                 if ((mask & (1 << bit)) != 0)
                 {
-                    Implicant candidate = primes.get(optional.get(bit).intValue());
-                    subsetCover = subsetCover | candidate.covered;
-                    literalCost = literalCost + candidate.literalCount();
-                    termCost++;
+                    Implicant candidate = primes[optional[bit]];
+                    subsetCover         = subsetCover | candidate.covered;
+                    literalCost         = literalCost + candidate.literalCount();
+                    termCost            = termCost + 1;
                 }
             }
 
             if ((subsetCover & remaining) == remaining)
             {
                 if (literalCost < bestLiteralCost
-                || (literalCost == bestLiteralCost && termCost < bestTermCost))
+                        || (literalCost == bestLiteralCost && termCost < bestTermCost))
                 {
-                    bestMask = mask;
+                    bestMask        = mask;
                     bestLiteralCost = literalCost;
-                    bestTermCost = termCost;
+                    bestTermCost    = termCost;
                 }
             }
         }
 
-        ArrayList<Implicant> result = new ArrayList<Implicant>();
-        for (int primeIndex = 0; primeIndex < selected.length; primeIndex++)
+        // Build the final result: essentials first, then chosen optionals.
+        int resultCount = 0;
+
+        for (int primeIndex = 0; primeIndex < primeCount; primeIndex++)
         {
             if (selected[primeIndex])
             {
-                addUnique(result, primes.get(primeIndex));
+                resultCount = addUnique(result, resultCount, primes[primeIndex]);
             }
         }
-        for (int bit = 0; bit < optional.size(); bit++)
+
+        for (int bit = 0; bit < optionalCount; bit++)
         {
             if ((bestMask & (1 << bit)) != 0)
             {
-                addUnique(result, primes.get(optional.get(bit).intValue()));
+                resultCount = addUnique(result, resultCount, primes[optional[bit]]);
             }
         }
-        return result;
+
+        return resultCount;
     }
 
-    private static void addUnique(ArrayList<Implicant> list, Implicant item)
+    // Adds item to list only if no element with the same bit pattern already exists.
+    // Returns the new count.
+    private static int addUnique(Implicant[] list, int count, Implicant item)
     {
-        for (int itemIndex = 0; itemIndex < list.size(); itemIndex++)
+        for (int itemIndex = 0; itemIndex < count; itemIndex++)
         {
-            if (list.get(itemIndex).samePattern(item))
+            if (list[itemIndex].samePattern(item))
             {
-                return;
+                return count;
             }
         }
-        list.add(item);
+        list[count] = item;
+        return count + 1;
     }
 
     private static void sortTerms(String[] terms)
@@ -213,29 +252,29 @@ public final class KMapSimplifier
             for (int secondIndex = firstIndex + 1; secondIndex < terms.length; secondIndex++)
             {
                 if (terms[secondIndex].length() < terms[firstIndex].length()
-                || (terms[secondIndex].length() == terms[firstIndex].length()
-                && terms[secondIndex].compareTo(terms[firstIndex]) < 0))
+                        || (terms[secondIndex].length() == terms[firstIndex].length()
+                        && terms[secondIndex].compareTo(terms[firstIndex]) < 0))
                 {
-                    String swappedTerm = terms[firstIndex];
-                    terms[firstIndex] = terms[secondIndex];
-                    terms[secondIndex] = swappedTerm;
+                    String swappedTerm   = terms[firstIndex];
+                    terms[firstIndex]    = terms[secondIndex];
+                    terms[secondIndex]   = swappedTerm;
                 }
             }
         }
     }
 
-    // Represents a product term. bits/mask encode the 4-variable pattern (ABCD = bits 3210).
+    // Represents a product term. bits/mask encode the 4-variable pattern.
     private static final class Implicant
     {
-        // mask bit 1 means that variable is a don't-care in this implicant.
+        // mask bit 1 means that variable is a don't care in this implicant.
         private final int bits;
         private final int mask;
         private final int covered;
 
         Implicant(int bits, int mask, int covered)
         {
-            this.bits = bits;
-            this.mask = mask;
+            this.bits    = bits;
+            this.mask    = mask;
             this.covered = covered;
         }
 
@@ -276,8 +315,8 @@ public final class KMapSimplifier
             }
 
             char[] variableNames = {'A', 'B', 'C', 'D'};
-            int[] bitValues = {8, 4, 2, 1};
-            String text = "";
+            int[]  bitValues     = {8, 4, 2, 1};
+            String text          = "";
 
             for (int variableIndex = 0; variableIndex < variableNames.length; variableIndex++)
             {
