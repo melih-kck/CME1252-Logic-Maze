@@ -1,4 +1,3 @@
-// Immutable data object representing one entry in the high score table (name + score).
 public class HighScoreEntry
 {
     private final String name;

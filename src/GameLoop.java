@@ -41,7 +41,8 @@ public class GameLoop
     private char[] inputQueue = new char[10];
 
     private int activeScreen = 1;
-    private int missingSlotRow = -1;
+    private int[] missingSlotRows;
+    private int currentTableColumn = 0;
     private boolean guessingTruthTable = false;
     private String tableFeedback = "";
     private Tree tree = new Tree();
@@ -55,6 +56,9 @@ public class GameLoop
     private boolean expressionReady = false;
     private HighScoreManager highScoreManager = new HighScoreManager();
     private boolean[] truthTableResults;
+    private String[] tableColumnNames;
+    private boolean[][] tableColumnResults;
+    private int expressionScore = 0;
     private String expectedSimplified = "";
 
     public GameLoop(Console console , Maze maze ) throws Exception
@@ -74,10 +78,22 @@ public class GameLoop
                     System.exit(0);
                 }
 
-                if (!guessingTruthTable && (activeScreen != 3 && activeScreen != 4)) {
+                if (!guessingTruthTable && (activeScreen == 1 || activeScreen == 2)) {
                     if (e.getKeyCode() == KeyEvent.VK_1) { activeScreen = 1; treeMessage = ""; }
                     if (e.getKeyCode() == KeyEvent.VK_2) { activeScreen = 2; treeMessage = ""; lastInput = Direction.NONE; }
-                    if (e.getKeyCode() == KeyEvent.VK_3) { activeScreen = 3; treeMessage = ""; lastInput = Direction.NONE; }
+                    if (e.getKeyCode() == KeyEvent.VK_3)
+                    {
+                        if (expressionReady)
+                        {
+                            activeScreen = 3;
+                            treeMessage = "";
+                            lastInput = Direction.NONE;
+                        }
+                        else
+                        {
+                            treeMessage = "Finish a valid tree first.";
+                        }
+                    }
                 }
 
                 if (activeScreen == 1)
@@ -110,16 +126,10 @@ public class GameLoop
                     {
                         if (!player.isBackpackEmpty())
                         {
-                            if (tree.getCursorSymbol() != ' ')
-                            {
-                                tree.moveToNextEmpty();
-                            }
-
                             char item = player.peekBackpack();
                             if (tree.placeSymbol(item))
                             {
                                 player.popBackpack();
-                                tree.moveToNextEmpty();
                                 treeMessage = "";
                                 expressionReady = false;
                                 expressionInfix = "";
@@ -127,7 +137,7 @@ public class GameLoop
                             }
                             else
                             {
-                                treeMessage = "ERROR: Tree is full.";
+                                treeMessage = "ERROR: Cursor is not empty.";
                             }
                         }
                     }
@@ -162,17 +172,25 @@ public class GameLoop
                         {
                             if (!expressionReady)
                             {
-                                int addedScore = 10 * tree.countTotalNodes(tree.getRoot());
-                                score += addedScore;
+                                expressionScore = 10 * tree.countTotalNodes(tree.getRoot());
+                                score += expressionScore;
                                 expressionInfix = tree.getFullInfix();
                                 expressionPostfix = tree.getFullPostfix();
-                                truthTableResults = new Expression(tree).evaluateAllRows();
+                                Expression expression = new Expression(tree);
+                                truthTableResults = expression.evaluateAllRows();
+                                tableColumnNames = expression.getColumnNames();
+                                tableColumnResults = expression.evaluateColumns();
                                 expectedSimplified = KMapSimplifier.simplify(truthTableResults);
                                 treeMessage = "";
                                 expressionReady = true;
                                 activeScreen = 3;
-                                missingSlotRow = random.nextInt(16);
-                                guessingTruthTable = true;
+                                missingSlotRows = new int[tableColumnNames.length];
+                                for (int i = 0; i < missingSlotRows.length; i++)
+                                {
+                                    missingSlotRows[i] = random.nextInt(16);
+                                }
+                                currentTableColumn = 0;
+                                guessingTruthTable = tableColumnNames.length > 0;
                                 tableFeedback = "";
                             }
                         }
@@ -191,17 +209,19 @@ public class GameLoop
                         if (e.getKeyChar() == '0' || e.getKeyChar() == '1')
                         {
                             boolean guess = (e.getKeyChar() == '1');
-                            if (guess == truthTableResults[missingSlotRow])
+                            int missingRow = missingSlotRows[currentTableColumn];
+                            if (guess == tableColumnResults[currentTableColumn][missingRow])
                             {
                                 score += 3;
-                                tableFeedback = "Correct! (+3 pts).";
+                                tableFeedback = "C" + (currentTableColumn + 1) + " correct! (+3 pts)";
                             }
                             else
                             {
                                 score -= 2;
-                                tableFeedback = "Wrong! (-2 pts).";
+                                tableFeedback = "C" + (currentTableColumn + 1) + " wrong! (-2 pts)";
                             }
-                            guessingTruthTable = false;
+                            currentTableColumn = currentTableColumn + 1;
+                            guessingTruthTable = currentTableColumn < tableColumnNames.length;
                             treeMessage = "";
                         }
                     }
@@ -214,13 +234,11 @@ public class GameLoop
                         else if (e.getKeyCode() == KeyEvent.VK_ENTER)
                         {
                             boolean[] userResults = StringEvaluator.evaluate(treeMessage);
-                            if (userResults != null && java.util.Arrays.equals(truthTableResults, userResults))
+                            boolean[] simplifiedResults = StringEvaluator.evaluate(expectedSimplified);
+                            if (userResults != null && simplifiedResults != null
+                                    && java.util.Arrays.equals(simplifiedResults, userResults))
                             {
-                                score += 10;
-                            }
-                            else
-                            {
-                                score -= 10;
+                                score += expressionScore;
                             }
                             treeMessage = "";
                             activeScreen = 4;
@@ -394,10 +412,16 @@ public class GameLoop
 
     private void clearWholeScreen()
     {
-        for (int r = 0; r < 45; r++)
+        String emptyLine = "";
+        for (int i = 0; i < 99; i++)
+        {
+            emptyLine = emptyLine + " ";
+        }
+
+        for (int r = 0; r < 30; r++)
         {
             console.getTextWindow().setCursorPosition(0, r);
-            console.getTextWindow().output("                                                                                                    ");
+            console.getTextWindow().output(emptyLine);
 
         }
     }
@@ -448,7 +472,7 @@ public class GameLoop
                 {
                     ConsoleColors.printPlayer(console);
                 }
-                else if (fireball.isActive() && r == fireball.getRow() && c == fireball.getCol())
+                else if (fireball.isAt(c, r))
                 {
                     ConsoleColors.print(console, 'o');
                 }
@@ -553,7 +577,7 @@ public class GameLoop
         {
             return false;
         }
-        return maze.getGrid()[row][col] != 'X';
+        return maze.getGrid()[row][col] != 'X' && !fireball.isAt(col, row);
     }
 
     private void handleFire(Player player)
@@ -564,10 +588,10 @@ public class GameLoop
             fireRequested = false;
         }
 
-        int hitRobot = fireball.update(maze.getGrid());
-        if (hitRobot > 0)
+        int hitRobot = fireball.update(maze.getGrid(), player.getCol(), player.getRow());
+        for (int i = 0; i < hitRobot; i++)
         {
-            damageRobotAt(fireball.getCol(), fireball.getRow());
+            damageRobotAt(fireball.getHitCol(i), fireball.getHitRow(i));
         }
         fireballCount = fireball.getPackedCount();
     }
@@ -784,6 +808,11 @@ public class GameLoop
         {
             placeQueueElementToMaze(inputQueue[i], null);
         }
+
+        for (int i = 0; i < inputQueue.length; i = i + 1)
+        {
+            inputQueue[i] = generateQueueElement();
+        }
     }
 
     private void updateInputQueue(Player player)
@@ -794,7 +823,10 @@ public class GameLoop
         }
 
         char next = inputQueue[0];
-        placeQueueElementToMaze(next, player);
+        if (!placeQueueElementToMaze(next, player))
+        {
+            return;
+        }
 
         for (int i = 0; i < inputQueue.length - 1; i = i + 1)
         {
@@ -829,7 +861,7 @@ public class GameLoop
         return logicSymbols[random.nextInt(logicSymbols.length)];
     }
 
-    private void placeQueueElementToMaze(char element, Player player)
+    private boolean placeQueueElementToMaze(char element, Player player)
     {
         char[][] grid = maze.getGrid();
 
@@ -850,30 +882,26 @@ public class GameLoop
             {
                 continue;
             }
+            if (fireball.isAt(col, row))
+            {
+                continue;
+            }
 
             if (element == 'X')
             {
                 if (addRobot(col, row))
                 {
                     grid[row][col] = element;
+                    return true;
                 }
             }
             else
             {
                 grid[row][col] = element;
+                return true;
             }
-            return;
         }
-    }
-
-    private String queueToString()
-    {
-        String text = "";
-        for (int i = 0; i < inputQueue.length; i = i + 1)
-        {
-            text = text + inputQueue[i];
-        }
-        return text;
+        return false;
     }
 
     private void drawTreeExpression()
@@ -898,8 +926,6 @@ public class GameLoop
 
     private void drawTableScreen()
     {
-        long elapsed = getElapsedSeconds();
-
         console.getTextWindow().setCursorPosition(0, 0);
         ConsoleColors.print(console, "--- TABLE SCREEN ---", ConsoleColors.TITLE);
 
@@ -919,52 +945,116 @@ public class GameLoop
             ConsoleColors.print(console, "Postfix : ", ConsoleColors.TITLE);
             ConsoleColors.print(console, expressionPostfix, ConsoleColors.NORMAL);
 
-        boolean[] results;
-        if (truthTableResults != null)
-        {
-            results = truthTableResults;
-        }
-        else
-        {
-            results = new Expression(tree).evaluateAllRows();
-        }
-
-        console.getTextWindow().setCursorPosition(0, 6);
-        ConsoleColors.print(console, "ABCD | Result", ConsoleColors.TITLE);
-        console.getTextWindow().setCursorPosition(0, 7);
-        ConsoleColors.print(console, "-------------", ConsoleColors.WALL);
-
-        for (int row = 0; row < results.length; row = row + 1)
-        {
-            console.getTextWindow().setCursorPosition(0, 8 + row);
-            if (guessingTruthTable && row == missingSlotRow)
-            {
-                ConsoleColors.print(console, Expression.formatRow(row, "?"), ConsoleColors.QUESTION);
-            }
-            else
-            {
-                console.getTextWindow().output(Expression.formatRow(row, results[row]));
-            }
-        }
-
         if (guessingTruthTable)
         {
-            console.getTextWindow().setCursorPosition(25, 8);
-            ConsoleColors.print(console, "Guess the missing value (?) by typing 0 or 1.", ConsoleColors.QUESTION);
+            drawTruthTableColumns();
         }
         else
         {
-            console.getTextWindow().setCursorPosition(25, 8);
-            ConsoleColors.print(console, "Simplify the K-Map (Quine-McCluskey)", ConsoleColors.TITLE);
-            console.getTextWindow().setCursorPosition(25, 10);
-            ConsoleColors.print(console, tableFeedback, ConsoleColors.QUESTION);
-            console.getTextWindow().setCursorPosition(25, 11);
-            ConsoleColors.print(console, "Enter simplified expression (use v, +, ^, ~):", ConsoleColors.TITLE);
-            console.getTextWindow().setCursorPosition(25, 12);
-            ConsoleColors.print(console, "> ", ConsoleColors.NORMAL);
-            ConsoleColors.print(console, treeMessage, ConsoleColors.QUESTION);
-            ConsoleColors.print(console, "_", ConsoleColors.NORMAL);
+            drawKarnaughMap();
         }
+    }
+
+    private void drawTruthTableColumns()
+    {
+        console.getTextWindow().setCursorPosition(0, 6);
+        ConsoleColors.print(console, "ABCD |", ConsoleColors.TITLE);
+        for (int column = 0; column < tableColumnNames.length; column++)
+        {
+            ConsoleColors.print(console, formatColumnCell("C" + (column + 1)), ConsoleColors.TITLE);
+        }
+
+        console.getTextWindow().setCursorPosition(0, 7);
+        String line = "";
+        for (int i = 0; i < 7 + tableColumnNames.length * 4; i++)
+        {
+            line = line + "-";
+        }
+        ConsoleColors.print(console, line, ConsoleColors.WALL);
+
+        for (int row = 0; row < 16; row++)
+        {
+            console.getTextWindow().setCursorPosition(0, 8 + row);
+            console.getTextWindow().output(Expression.formatRow(row, ""));
+
+            for (int column = 0; column < tableColumnNames.length; column++)
+            {
+                if (row == missingSlotRows[column] && column >= currentTableColumn)
+                {
+                    ConsoleColors.print(console, formatColumnCell("?"), ConsoleColors.QUESTION);
+                }
+                else
+                {
+                    String value = tableColumnResults[column][row] ? "1" : "0";
+                    console.getTextWindow().output(formatColumnCell(value));
+                }
+            }
+        }
+
+        for (int column = 0; column < tableColumnNames.length; column++)
+        {
+            String name = tableColumnNames[column];
+            if (name.length() > 24)
+            {
+                name = name.substring(0, 21) + "...";
+            }
+            console.getTextWindow().setCursorPosition(70, 6 + column);
+            console.getTextWindow().output("C" + (column + 1) + ": " + name);
+        }
+
+        console.getTextWindow().setCursorPosition(70, 23);
+        ConsoleColors.print(console, "Enter C" + (currentTableColumn + 1) + ": 0 or 1", ConsoleColors.QUESTION);
+        console.getTextWindow().setCursorPosition(70, 25);
+        ConsoleColors.print(console, tableFeedback, ConsoleColors.QUESTION);
+    }
+
+    private String formatColumnCell(String text)
+    {
+        String cell = " " + text;
+        while (cell.length() < 4)
+        {
+            cell = cell + " ";
+        }
+        return cell;
+    }
+
+    private void drawKarnaughMap()
+    {
+        console.getTextWindow().setCursorPosition(0, 6);
+        ConsoleColors.print(console, "KARNAUGH MAP", ConsoleColors.TITLE);
+        console.getTextWindow().setCursorPosition(0, 8);
+        ConsoleColors.print(console, "AB\\CD | 00  01  11  10", ConsoleColors.TITLE);
+        console.getTextWindow().setCursorPosition(0, 9);
+        ConsoleColors.print(console, "------------------------", ConsoleColors.WALL);
+
+        int[] grayOrder = {0, 1, 3, 2};
+        for (int row = 0; row < 4; row++)
+        {
+            console.getTextWindow().setCursorPosition(0, 10 + row);
+            String rowName;
+            if (grayOrder[row] == 0) rowName = "00";
+            else if (grayOrder[row] == 1) rowName = "01";
+            else if (grayOrder[row] == 3) rowName = "11";
+            else rowName = "10";
+            console.getTextWindow().output("  " + rowName + "  | ");
+
+            for (int column = 0; column < 4; column++)
+            {
+                int truthRow = grayOrder[row] * 4 + grayOrder[column];
+                console.getTextWindow().output((truthTableResults[truthRow] ? "1" : "0") + "   ");
+            }
+        }
+
+        console.getTextWindow().setCursorPosition(0, 16);
+        ConsoleColors.print(console, tableFeedback, ConsoleColors.QUESTION);
+        console.getTextWindow().setCursorPosition(0, 18);
+        ConsoleColors.print(console, "Enter the simplified expression:", ConsoleColors.TITLE);
+        console.getTextWindow().setCursorPosition(0, 19);
+        ConsoleColors.print(console, "Use A-D, a-d, v, +, ^, ~ and parentheses.", ConsoleColors.TITLE);
+        console.getTextWindow().setCursorPosition(0, 21);
+        ConsoleColors.print(console, "> ", ConsoleColors.NORMAL);
+        ConsoleColors.print(console, treeMessage, ConsoleColors.QUESTION);
+        ConsoleColors.print(console, "_", ConsoleColors.NORMAL);
     }
 
     private void sleep(int ms)

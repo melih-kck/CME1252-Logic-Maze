@@ -1,12 +1,14 @@
 public class Fireball
 {
     private int packedCount = 0;
-
-    private boolean active = false;
-    private int x = -1;
-    private int y = -1;
-    private int dx = 0;
-    private int dy = 0;
+    private int activeCount = 0;
+    private int[] x = new int[100];
+    private int[] y = new int[100];
+    private int[] dx = new int[100];
+    private int[] dy = new int[100];
+    private int hitCount = 0;
+    private int[] hitX = new int[100];
+    private int[] hitY = new int[100];
 
     public void addPacked()
     {
@@ -18,94 +20,140 @@ public class Fireball
         return packedCount;
     }
 
-    public boolean isActive()
+    public int getActiveCount()
     {
-        return active;
+        return activeCount;
     }
 
-    public int getCol()
+    public int getCol(int index)
     {
-        return x;
+        return x[index];
     }
 
-    public int getRow()
+    public int getRow(int index)
     {
-        return y;
+        return y[index];
+    }
+
+    public boolean isAt(int col, int row)
+    {
+        for (int i = 0; i < activeCount; i++)
+        {
+            if (x[i] == col && y[i] == row)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean fire(int startCol, int startRow, int direction)
     {
-        if (packedCount <= 0 || active)
+        if (packedCount <= 0 || activeCount >= x.length)
         {
             return false;
         }
 
-        int ndx = 0;
-        int ndy = 0;
-        if (direction == GameLoop.Direction.UP) { ndy = -1; }
-        if (direction == GameLoop.Direction.DOWN) { ndy = 1; }
-        if (direction == GameLoop.Direction.LEFT) { ndx = -1; }
-        if (direction == GameLoop.Direction.RIGHT) { ndx = 1; }
+        int newDx = 0;
+        int newDy = 0;
+        if (direction == GameLoop.Direction.UP) { newDy = -1; }
+        if (direction == GameLoop.Direction.DOWN) { newDy = 1; }
+        if (direction == GameLoop.Direction.LEFT) { newDx = -1; }
+        if (direction == GameLoop.Direction.RIGHT) { newDx = 1; }
 
-        if (ndx == 0 && ndy == 0)
+        if (newDx == 0 && newDy == 0)
         {
             return false;
         }
 
         packedCount = packedCount - 1;
-        active = true;
-        x = startCol;
-        y = startRow;
-        dx = ndx;
-        dy = ndy;
+        x[activeCount] = startCol;
+        y[activeCount] = startRow;
+        dx[activeCount] = newDx;
+        dy[activeCount] = newDy;
+        activeCount = activeCount + 1;
         return true;
     }
 
-    // Returns 1 on a robot hit; non-robot objects stop the fireball.
-    public int update(char[][] grid)
+    public int update(char[][] grid, int playerCol, int playerRow)
     {
-        if (!active)
+        hitCount = 0;
+        int index = 0;
+
+        while (index < activeCount)
         {
-            return 0;
+            int nextX = x[index] + dx[index];
+            int nextY = y[index] + dy[index];
+
+            if (nextY < 0 || nextY >= grid.length || nextX < 0 || nextX >= grid[0].length)
+            {
+                remove(index);
+                continue;
+            }
+
+            char target = grid[nextY][nextX];
+            if ((nextX == playerCol && nextY == playerRow) || isAtOther(nextX, nextY, index))
+            {
+                remove(index);
+                continue;
+            }
+
+            if (target == 'X')
+            {
+                hitX[hitCount] = nextX;
+                hitY[hitCount] = nextY;
+                hitCount = hitCount + 1;
+                x[index] = nextX;
+                y[index] = nextY;
+            }
+            else if (target == ' ' || target == '\0')
+            {
+                x[index] = nextX;
+                y[index] = nextY;
+            }
+            else
+            {
+                remove(index);
+                continue;
+            }
+
+            index = index + 1;
         }
 
-        int nextX = x + dx;
-        int nextY = y + dy;
-
-        if (nextY < 0 || nextY >= grid.length || nextX < 0 || nextX >= grid[0].length)
-        {
-            deactivate();
-            return 0;
-        }
-
-        char target = grid[nextY][nextX];
-
-        int destroyed = 0;
-        if (target == 'X')
-        {
-            destroyed = 1;
-            x = nextX;
-            y = nextY;
-        }
-        else if (target == ' ' || target == '\0')
-        {
-            x = nextX;
-            y = nextY;
-        }
-        else
-        {
-            // Hit a wall or other obstacle — stop the fireball.
-            deactivate();
-            return 0;
-        }
-
-        return destroyed;
+        return hitCount;
     }
 
-    public void deactivate()
+    public int getHitCol(int index)
     {
-        active = false;
-        dx = 0;
-        dy = 0;
+        return hitX[index];
+    }
+
+    public int getHitRow(int index)
+    {
+        return hitY[index];
+    }
+
+    private boolean isAtOther(int col, int row, int current)
+    {
+        for (int i = 0; i < activeCount; i++)
+        {
+            if (i != current && x[i] == col && y[i] == row)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void remove(int index)
+    {
+        for (int i = index; i < activeCount - 1; i++)
+        {
+            x[i] = x[i + 1];
+            y[i] = y[i + 1];
+            dx[i] = dx[i + 1];
+            dy[i] = dy[i + 1];
+        }
+        activeCount = activeCount - 1;
     }
 }

@@ -1,9 +1,5 @@
-// Simplifies a 4-variable boolean function using the Quine-McCluskey algorithm.
 public final class KMapSimplifier
 {
-    // Safe upper bounds for a 4-variable (16-row) truth table.
-    // at most 16 (one per row).
-    // the Quine-McCluskey expansion never exceeds 64 for 4 variables.
     private static final int MAX_MINTERMS   = 16;
     private static final int MAX_IMPLICANTS = 64;
 
@@ -11,7 +7,6 @@ public final class KMapSimplifier
     {
     }
 
-    // Takes a boolean[16] truth table, returns simplified SOP expression string.
     public static String simplify(boolean[] table)
     {
         if (table == null || table.length != 16)
@@ -42,11 +37,9 @@ public final class KMapSimplifier
             return "1";
         }
 
-        //  prime implicants
         Implicant[] primes     = new Implicant[MAX_IMPLICANTS];
         int         primeCount = findPrimeImplicants(minterms, mintermCount, primes);
 
-        // cover selection
         Implicant[] selected      = new Implicant[MAX_IMPLICANTS];
         int         selectedCount = selectCover(primes, primeCount, minterms, mintermCount, universe, selected);
 
@@ -69,12 +62,10 @@ public final class KMapSimplifier
         return result;
     }
 
-    // Writes results into the primes[] array and returns how many were written.
     private static int findPrimeImplicants(int[] minterms, int mintermCount, Implicant[] primes)
     {
         int primeCount = 0;
 
-        // Seed the first round with one implicant per minterm.
         Implicant[] current      = new Implicant[MAX_IMPLICANTS];
         int         currentCount = 0;
 
@@ -105,7 +96,6 @@ public final class KMapSimplifier
                 }
             }
 
-            // Any implicant that was never merged is a prime implicant.
             for (int currentIndex = 0; currentIndex < currentCount; currentIndex++)
             {
                 if (!used[currentIndex])
@@ -121,7 +111,6 @@ public final class KMapSimplifier
         return primeCount;
     }
 
-    // Writes chosen implicants into result[] and returns how many were written.
     private static int selectCover(Implicant[] primes, int primeCount,
                                    int[] minterms, int mintermCount,
                                    int universe, Implicant[] result)
@@ -129,7 +118,6 @@ public final class KMapSimplifier
         boolean[] selected = new boolean[primeCount];
         int       covered  = 0;
 
-        // Find essential prime implicants (those that uniquely cover a minterm).
         for (int mintermIndex = 0; mintermIndex < mintermCount; mintermIndex++)
         {
             int minterm   = minterms[mintermIndex];
@@ -159,7 +147,6 @@ public final class KMapSimplifier
             }
         }
 
-        // Collect non-essential prime implicants.
         int[] optional      = new int[primeCount];
         int   optionalCount = 0;
 
@@ -172,7 +159,6 @@ public final class KMapSimplifier
             }
         }
 
-        // Brute-force all subsets of optional implicants to cover remaining minterms.
         int remaining        = universe & ~covered;
         int bestMask         = 0;
         int bestLiteralCost  = Integer.MAX_VALUE;
@@ -208,7 +194,6 @@ public final class KMapSimplifier
             }
         }
 
-        // Build the final result: essentials first, then chosen optionals.
         int resultCount = 0;
 
         for (int primeIndex = 0; primeIndex < primeCount; primeIndex++)
@@ -230,8 +215,6 @@ public final class KMapSimplifier
         return resultCount;
     }
 
-    // Adds item to list only if no element with the same bit pattern already exists.
-    // Returns the new count.
     private static int addUnique(Implicant[] list, int count, Implicant item)
     {
         for (int itemIndex = 0; itemIndex < count; itemIndex++)
@@ -263,10 +246,8 @@ public final class KMapSimplifier
         }
     }
 
-    // Represents a product term. bits/mask encode the 4-variable pattern.
     private static final class Implicant
     {
-        // mask bit 1 means that variable is a don't care in this implicant.
         private final int bits;
         private final int mask;
         private final int covered;

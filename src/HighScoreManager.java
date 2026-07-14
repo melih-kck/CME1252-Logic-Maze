@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Scanner;
 
-// Manages the high score table (loads/saves highscore.txt).
 public class HighScoreManager
 {
     private static final String FILE_NAME = "highscore.txt";
@@ -18,7 +17,7 @@ public class HighScoreManager
 
     private void loadScores()
     {
-        File file = new File(FILE_NAME);
+        File file = Maze.findFile(FILE_NAME);
         if (!file.exists())
         {
             loadDefaultScores();
@@ -73,7 +72,7 @@ public class HighScoreManager
 
     private void saveScores()
     {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(FILE_NAME)))
+        try (PrintWriter writer = new PrintWriter(new FileWriter(Maze.findFile(FILE_NAME))))
         {
             HighScoreEntry[] allScores = scores.toArray();
             for (HighScoreEntry entry : allScores)

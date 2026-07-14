@@ -1,4 +1,3 @@
-// Doubly linked list used to store high scores in descending order.
 public class DoublyLinkedList
 {
 
@@ -17,7 +16,6 @@ public class DoublyLinkedList
     private Node head;
     private Node tail;
 
-    // Inserts a new entry maintaining descending score order (highest first).
     public void insertSorted(HighScoreEntry entry)
     {
         Node newNode = new Node(entry);
@@ -54,7 +52,6 @@ public class DoublyLinkedList
         }
     }
 
-    // Converts the linked list to an array for saving to file and displaying scores.
     public HighScoreEntry[] toArray()
     {
         int count = 0;

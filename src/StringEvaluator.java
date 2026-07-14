@@ -1,11 +1,9 @@
-// Recursive descent parser and evaluator for boolean expressions.
 public final class StringEvaluator
 {
     private StringEvaluator()
     {
     }
 
-    // Evaluates the expression for all 16 truth table rows (A,B,C,D combinations).
     public static boolean[] evaluate(String expression)
     {
         ExprNode root = parse(expression);

@@ -4,7 +4,6 @@ public class LogicSymbol
 	public static final int TYPE_UNARY_OPERATOR = 2;
 	public static final int TYPE_BINARY_OPERATOR = 3;
 
-	// Variables and their negated maze versions
 	public static final char VAR_A = 'A';
 	public static final char VAR_B = 'B';
 	public static final char VAR_C = 'C';

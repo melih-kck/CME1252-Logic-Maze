@@ -7,13 +7,13 @@ public class Robot
     public int hp = 1;
 
     private Random rnd = new Random();
-    public int roboMode = 0;
-    private int moveCounter = 0;
+    public int roboMode;
 
     public Robot(int sx, int sy)
     {
         x = sx;
         y = sy;
+        roboMode = rnd.nextInt(2);
     }
 
     public void moveAndCollect(char[][] map, int ax, int ay, Robot[] robots, int robotCount, int currentRobotIndex)
@@ -62,15 +62,11 @@ public class Robot
                 {
                     if (dx > 0 && canRobotStepTo(map, x + 1, y)) x++;
                     else if (dx < 0 && canRobotStepTo(map, x - 1, y)) x--;
-                    else if (dy > 0 && canRobotStepTo(map, x, y + 1)) y++;
-                    else if (dy < 0 && canRobotStepTo(map, x, y - 1)) y--;
                 }
                 else
                 {
                     if (dy > 0 && canRobotStepTo(map, x, y + 1)) y++;
                     else if (dy < 0 && canRobotStepTo(map, x, y - 1)) y--;
-                    else if (dx > 0 && canRobotStepTo(map, x + 1, y)) x++;
-                    else if (dx < 0 && canRobotStepTo(map, x - 1, y)) x--;
                 }
             }
             else
@@ -78,17 +74,6 @@ public class Robot
                 int dir = rnd.nextInt(4) + 1;
                 if (dir == 1) y--; else if (dir == 2) x++; else if (dir == 3) y++; else if (dir == 4) x--;
             }
-        }
-
-        moveCounter ++ ;
-        if (moveCounter >= 10)
-        {
-            if(roboMode == 0)
-                roboMode = 1 ;
-            else
-                roboMode = 0;
-
-            moveCounter = 0;
         }
 
         boolean collision = false;

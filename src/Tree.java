@@ -26,7 +26,6 @@ public class Tree
         cursor = root;
     }
 
-    // Builds the fixed 31-node tree pattern required by the project.
     private Node buildTemplate(int id, Node parent)
     {
         if (id > 31) return null;

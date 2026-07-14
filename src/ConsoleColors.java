@@ -15,7 +15,7 @@ public class ConsoleColors
     public static final TextAttributes FIREBALL = new TextAttributes(Color.BLUE, Color.BLACK);
     public static final TextAttributes OPERATOR = new TextAttributes(Color.RED, Color.BLACK);
     public static final TextAttributes ROBOT_RANDOM = new TextAttributes(Color.GREEN, Color.BLACK);
-    public static final TextAttributes ROBOT_TARGET = new TextAttributes(Color.MAGENTA, Color.BLACK);
+    public static final TextAttributes ROBOT_TARGET = new TextAttributes(Color.RED, Color.BLACK);
     public static final TextAttributes CURSOR = new TextAttributes(Color.GREEN, Color.BLACK);
     public static final TextAttributes QUESTION = new TextAttributes(Color.YELLOW, Color.BLACK);
 
